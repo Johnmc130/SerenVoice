@@ -1,0 +1,48 @@
+# Archivos a ignorar en el deploy de Cloud Run
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+.env.local
+.env.development
+
+# Testing
+.pytest_cache/
+tests/
+*.test.py
+
+# IDE
+.vscode/
+.idea/
+
+# Docker local (solo el de desarrollo)
+Dockerfile.local
+Dockerfile.cloudrun
+docker-compose*.yml
+
+# Archivos grandes innecesarios
+*.log
+*.tmp
+uploads/*
+!uploads/.gitkeep
+
+# Git
+.git/
+.gitignore
+
+# Documentación
+*.md
+!README.md
+
+# Datos de entrenamiento (ya está el modelo entrenado)
+data/
+tools/
+
+# Node (si hay)
+node_modules/

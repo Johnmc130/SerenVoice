@@ -1,0 +1,31 @@
+{
+  "timestamp": "2025-12-03T23:54:36.891644",
+  "samples_indexed": 1440,
+  "samples_processed": 1440,
+  "models": {
+    "emotion_sklearn": {
+      "accuracy": 0.7118055555555556,
+      "classes": [
+        "asustado",
+        "enojado",
+        "feliz",
+        "neutral",
+        "sorprendido",
+        "triste"
+      ]
+    },
+    "emotion_cnn": {
+      "accuracy": 0.6354166865348816,
+      "classes": [
+        "asustado",
+        "enojado",
+        "feliz",
+        "neutral",
+        "sorprendido",
+        "triste"
+      ]
+    },
+    "stress": null,
+    "anxiety": null
+  }
+}

@@ -1,0 +1,9 @@
+filename,label_emotion,label_stress,label_anxiety
+sample_happy.wav,feliz,bajo,leve
+sample_sad.wav,triste,medio,moderada
+sample_angry.wav,enojado,alto,severa
+sample_neutral.wav,neutral,bajo,leve
+sample_surprised.wav,sorprendido,medio,moderada
+sample_scared.wav,asustado,alto,severa
+
+

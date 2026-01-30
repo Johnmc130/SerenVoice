@@ -1,0 +1,40 @@
+# Python
+venv/
+__pycache__/
+
+# Node.js
+node_modules/
+*.log
+
+# React / Expo
+dist/
+.expo/
+.expo-shared/
+
+# Docker
+db_data/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+proyectofinal-frontend/.env
+proyectofinal-mobile/.env
+
+__pycache__/
+
+# Backend local data
+backend/uploads/
+backend/.pytest_cache/
+
+# Frontend
+proyectofinal-frontend/node_modules/
+proyectofinal-mobile/node_modules/
+
+#txt
+*.txt
+
+#env
+*.env
+.env

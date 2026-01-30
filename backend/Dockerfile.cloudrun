@@ -1,0 +1,31 @@
+# Dockerfile optimizado para Google Cloud Run
+FROM python:3.11-slim
+
+# Instalar ffmpeg para soportar formatos de audio
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends ffmpeg && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Configurar UTF-8 y Python
+ENV PYTHONIOENCODING=utf-8
+ENV PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+# Copiar requirements primero para aprovechar cache
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copiar todo el código
+COPY . .
+
+# Puerto que usa Cloud Run
+ENV PORT=8080
+EXPOSE 8080
+
+# Gunicorn para producción (mejor que Flask dev server)
+RUN pip install gunicorn
+
+# Ejecutar con gunicorn
+CMD exec gunicorn --bind :$PORT --workers 1 --threads 8 --timeout 0 app:app

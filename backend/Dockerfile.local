@@ -1,0 +1,26 @@
+FROM python:3.11-slim
+
+# Instalar ffmpeg para soportar formatos de audio
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends ffmpeg && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Configurar UTF-8 y Python
+ENV PYTHONIOENCODING=utf-8
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app:$PYTHONPATH
+
+WORKDIR /app
+
+# Copiar solo backend y requirements desde la raíz
+COPY backend/requirements.txt ./backend/
+RUN pip install --no-cache-dir -r ./backend/requirements.txt
+
+# Copiar todo el código backend
+COPY backend/ ./backend/
+
+EXPOSE 5000
+
+# Ejecutar app.py desde backend
+CMD ["python", "backend/app.py"]
