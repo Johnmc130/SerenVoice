@@ -32,8 +32,8 @@ backend/.pytest_cache/
 proyectofinal-frontend/node_modules/
 proyectofinal-mobile/node_modules/
 
-#txt
-*.txt
+# Archivos de texto genéricos (pero no requirements.txt)
+# *.txt - COMENTADO para permitir requirements.txt
 
 #env
 *.env
