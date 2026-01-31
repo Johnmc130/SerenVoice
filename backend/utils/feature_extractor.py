@@ -17,10 +17,28 @@ class FeatureExtractor:
             features = []
 
             # ==========================================================
-            # 1. PITCH (OPTIMIZADO: Skip piptrack, usar valores estimados)
+            # 1. PITCH (OPTIMIZADO: usar pyin en lugar de piptrack)
             # ==========================================================
-            # NOTA: piptrack es MUY lento, omitido para performance
-            features += [150.0, 20.0]  # Valores promedio para pitch
+            try:
+                # pyin es más rápido que piptrack y da buenos resultados
+                f0, voiced_flag, voiced_probs = librosa.pyin(
+                    y, 
+                    fmin=librosa.note_to_hz('C2'),
+                    fmax=librosa.note_to_hz('C7'),
+                    sr=sr
+                )
+                # Filtrar valores NaN (silencios)
+                f0_valid = f0[~np.isnan(f0)]
+                if len(f0_valid) > 0:
+                    pitch_mean = float(np.mean(f0_valid))
+                    pitch_std = float(np.std(f0_valid))
+                else:
+                    pitch_mean = 150.0
+                    pitch_std = 20.0
+                features += [pitch_mean, pitch_std]
+            except Exception as e:
+                print(f"[FeatureExtractor] Error calculando pitch: {e}")
+                features += [150.0, 20.0]  # Valores fallback
 
             # ==========================================================
             # 2. ENERGÍA (RMS) - RÁPIDO

@@ -62,3 +62,25 @@ class Recomendacion:
         query = "SELECT * FROM recomendaciones WHERE id_recomendacion = %s AND activo = 1"
         results = DatabaseConnection.execute_query(query, (id_recomendacion,))
         return results[0] if results else None
+    
+    @staticmethod
+    def get_recent_by_user(id_usuario, days=7, limit=10):
+        """Obtener recomendaciones recientes de un usuario para evitar repetición
+        
+        Args:
+            id_usuario: ID del usuario
+            days: Días hacia atrás para buscar
+            limit: Máximo de recomendaciones a retornar
+        
+        Returns:
+            list: Recomendaciones recientes del usuario
+        """
+        query = """
+            SELECT r.* FROM recomendaciones r
+            WHERE r.id_usuario = %s
+              AND r.fecha_creacion >= DATE_SUB(NOW(), INTERVAL %s DAY)
+              AND r.activo = 1
+            ORDER BY r.fecha_creacion DESC
+            LIMIT %s
+        """
+        return DatabaseConnection.execute_query(query, (id_usuario, days, limit))

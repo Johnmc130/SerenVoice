@@ -332,17 +332,24 @@ def analyze_voice():
                 conn = DatabaseConnection.get_connection()
                 cursor = conn.cursor()
 
+                # Convertir duración a int para compatibilidad con la BD real
+                duration_int = int(duration) if duration else 0
+
+                # Query compatible con estructura REAL de la tabla audio en producción:
+                # Columnas reales: id_usuario, nombre_archivo, ruta_archivo, duracion, 
+                # duracion_segundos, fecha_grabacion, procesado
                 insert_query = """
                     INSERT INTO audio
-                    (id_usuario, nombre_archivo, ruta_archivo, duracion, fecha_grabacion)
-                    VALUES (%s, %s, %s, %s, NOW())
+                    (id_usuario, nombre_archivo, ruta_archivo, duracion, duracion_segundos, fecha_grabacion, procesado)
+                    VALUES (%s, %s, %s, %s, %s, NOW(), 0)
                 """
 
                 cursor.execute(insert_query, (
                     user_id,
                     filename,
                     filename,
-                    duration
+                    duration_int,
+                    duration_int
                 ))
 
                 conn.commit()

@@ -61,12 +61,39 @@ class AudioService:
     # ============================================================
     def analyze_audio(self, filepath, duration):
         try:
-            # OPTIMIZACIÓN: Cargar solo primeros 30 segundos para análisis rápido
             import librosa
+            print(f"[AudioService] Iniciando análisis de audio: {filepath}")
+            
+            # Verificar que el archivo existe
+            import os
+            if not os.path.exists(filepath):
+                raise Exception(f"Archivo no encontrado: {filepath}")
+            
+            file_size = os.path.getsize(filepath)
+            print(f"[AudioService] Archivo existe, tamaño: {file_size} bytes")
+            
+            if file_size < 1000:  # Menos de 1KB probablemente está vacío o corrupto
+                print(f"[AudioService] WARNING: Archivo muy pequeño ({file_size} bytes)")
+            
+            # OPTIMIZACIÓN: Cargar solo primeros 30 segundos para análisis rápido
             max_duration = 30.0  # Limitar a 30 segundos máximo
             
             # Cargar audio con sample rate reducido (8000 Hz) para mayor velocidad
             y, sr = librosa.load(filepath, sr=8000, mono=True, duration=max_duration)
+            
+            print(f"[AudioService] Audio cargado: samples={len(y)}, sr={sr}, duration={len(y)/sr:.2f}s")
+            
+            # Verificar que tenemos datos de audio válidos
+            if len(y) == 0 or np.max(np.abs(y)) < 0.0001:
+                print("[AudioService] WARNING: Audio vacío o silencioso, usando valores por defecto")
+                return {
+                    'success': True,
+                    'data': {
+                        'emotions': self._generate_default_emotions(),
+                        'confidence': 0.5,
+                        'features': {'pitch_mean': 0, 'pitch_variation': 0, 'energy': 0, 'voice_quality': 0}
+                    }
+                }
             
             audio_data = {
                 'y': y,
@@ -75,6 +102,7 @@ class AudioService:
             }
             
             features = self.feature_extractor.extract(audio_data)
+            print(f"[AudioService] Features extraídos: {len(features) if features is not None else 0}")
             
             # Si FeatureExtractor devuelve array, convertir a lista
             if isinstance(features, np.ndarray):
@@ -82,8 +110,10 @@ class AudioService:
 
             # Análisis IA o heurístico
             if self.model is not None and self.label_encoder is not None:
+                print("[AudioService] Usando modelo ML para análisis")
                 emotions, confidence = self._analyze_with_model(features)
             else:
+                print("[AudioService] Modelo ML no disponible, usando análisis heurístico")
                 emotions, confidence = self._analyze_heuristic(features)
 
             # Retornar resultados con formato correcto
@@ -207,24 +237,35 @@ class AudioService:
     # ANÁLISIS HEURÍSTICO
     # ============================================================
     def _analyze_heuristic(self, features):
+        print(f"[AudioService] Usando análisis heurístico (modelo ML no cargado)")
+        
         # Asegurar que features es una lista
         if isinstance(features, np.ndarray):
             features = features.flatten().tolist()
+        
+        # Validar que tenemos features válidos
+        if not features or len(features) < 5:
+            print(f"[AudioService] WARNING: Features insuficientes: {len(features) if features else 0}")
+            # Generar emociones por defecto basadas en valores neutros
+            return self._generate_default_emotions(), 0.5
             
-        pitch_mean = features[0] if len(features) > 0 else 150
-        pitch_std = features[1] if len(features) > 1 else 50
-        energy = features[2] if len(features) > 2 else 0.05
-        zcr = features[4] if len(features) > 4 else 0.05
+        pitch_mean = float(features[0]) if len(features) > 0 else 150.0
+        pitch_std = float(features[1]) if len(features) > 1 else 50.0
+        energy = float(features[2]) if len(features) > 2 else 0.05
+        zcr = float(features[4]) if len(features) > 4 else 0.05
+        
+        print(f"[AudioService] Features: pitch_mean={pitch_mean:.2f}, pitch_std={pitch_std:.2f}, energy={energy:.4f}, zcr={zcr:.4f}")
 
-        pitch_norm = min(1, max(0, pitch_mean / 300))
-        pitch_std_norm = min(1, max(0, pitch_std / 100))
-        energy_norm = min(1, max(0, energy / 0.1))
-        zcr_norm = min(1, max(0, zcr * 10))
+        # Normalizar valores (evitar división por cero)
+        pitch_norm = min(1.0, max(0.0, pitch_mean / 300.0))
+        pitch_std_norm = min(1.0, max(0.0, pitch_std / 100.0))
+        energy_norm = min(1.0, max(0.0, energy / 0.1))
+        zcr_norm = min(1.0, max(0.0, zcr * 10.0))
 
         happiness = (pitch_norm*0.4 + energy_norm*0.4 + (1-pitch_std_norm)*0.2) * 100
         sadness   = ((1-pitch_norm)*0.4 + (1-energy_norm)*0.4 + (1-pitch_std_norm)*0.2) * 100
         anger     = (pitch_std_norm*0.4 + energy_norm*0.4 + zcr_norm*0.2) * 100
-        neutral   = (1 - abs(pitch_norm - 0.5)) * (1 - energy_norm) * 100
+        neutral   = max(5, (1 - abs(pitch_norm - 0.5)) * (1 - energy_norm) * 100)  # Mínimo 5%
         surprise  = (pitch_std_norm*0.5 + energy_norm*0.3 + pitch_norm*0.2) * 100
         fear      = (zcr_norm*0.5 + pitch_std_norm*0.3 + (1-energy_norm)*0.2) * 100
         stress    = (zcr_norm*0.4 + pitch_std_norm*0.3 + energy_norm*0.3) * 100
@@ -245,7 +286,21 @@ class AudioService:
         ]
 
         emotions.sort(key=lambda x: x['value'], reverse=True)
+        print(f"[AudioService] Emociones heurísticas generadas: {[e['name'] + '=' + str(e['value']) for e in emotions[:3]]}")
         return emotions, 0.75
+    
+    def _generate_default_emotions(self):
+        """Genera emociones por defecto cuando no hay suficientes features"""
+        return [
+            {"name": "Neutral",   "value": 35.0, "color": "#808080"},
+            {"name": "Felicidad", "value": 20.0, "color": "#FFD700"},
+            {"name": "Tristeza",  "value": 15.0, "color": "#4169E1"},
+            {"name": "Estrés",    "value": 10.0, "color": "#FF4500"},
+            {"name": "Ansiedad",  "value": 8.0, "color": "#9b5de5"},
+            {"name": "Enojo",     "value": 5.0, "color": "#FF6347"},
+            {"name": "Sorpresa",  "value": 4.0, "color": "#FF69B4"},
+            {"name": "Miedo",     "value": 3.0, "color": "#9370DB"},
+        ]
 
     # ============================================================
     # RESUMEN DE FEATURES
