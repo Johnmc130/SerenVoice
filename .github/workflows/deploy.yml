@@ -34,6 +34,8 @@ jobs:
     steps:
       - name: 📥 Checkout código
         uses: actions/checkout@v4
+        with:
+          submodules: false
 
       - name: 🐍 Setup Python
         uses: actions/setup-python@v5
@@ -70,11 +72,14 @@ jobs:
     steps:
       - name: 📥 Checkout código
         uses: actions/checkout@v4
+        with:
+          submodules: false
 
       - name: 🐹 Setup Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.21'
+          cache-dependency-path: 'deploy/go.sum'
 
       - name: 📦 Descargar dependencias Go
         run: |
@@ -109,32 +114,40 @@ jobs:
     steps:
       - name: 📥 Checkout código
         uses: actions/checkout@v4
+        with:
+          submodules: false
 
       - name: 🔐 Autenticar con Google Cloud
+        if: secrets.GCP_SA_KEY != ''
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
 
       - name: ☁️ Setup Google Cloud SDK
+        if: secrets.GCP_SA_KEY != ''
         uses: google-github-actions/setup-gcloud@v2
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
 
       - name: 🐳 Configurar Docker para GCR
+        if: secrets.GCP_SA_KEY != ''
         run: gcloud auth configure-docker
 
       - name: 🏗️ Build imagen Docker
+        if: secrets.GCP_SA_KEY != ''
         run: |
           cd backend
           docker build -t gcr.io/${{ env.PROJECT_ID }}/${{ env.BACKEND_SERVICE }}:${{ github.sha }} .
           docker tag gcr.io/${{ env.PROJECT_ID }}/${{ env.BACKEND_SERVICE }}:${{ github.sha }} gcr.io/${{ env.PROJECT_ID }}/${{ env.BACKEND_SERVICE }}:latest
 
       - name: 📤 Push imagen a GCR
+        if: secrets.GCP_SA_KEY != ''
         run: |
           docker push gcr.io/${{ env.PROJECT_ID }}/${{ env.BACKEND_SERVICE }}:${{ github.sha }}
           docker push gcr.io/${{ env.PROJECT_ID }}/${{ env.BACKEND_SERVICE }}:latest
 
       - name: 🚀 Deploy a Cloud Run
+        if: secrets.GCP_SA_KEY != ''
         run: |
           gcloud run deploy ${{ env.BACKEND_SERVICE }} \
             --image gcr.io/${{ env.PROJECT_ID }}/${{ env.BACKEND_SERVICE }}:${{ github.sha }} \
@@ -152,6 +165,7 @@ jobs:
             --quiet
 
       - name: 📋 Obtener URL del servicio
+        if: secrets.GCP_SA_KEY != ''
         id: get-url
         run: |
           URL=$(gcloud run services describe ${{ env.BACKEND_SERVICE }} --region ${{ env.REGION }} --format='value(status.url)')
@@ -159,9 +173,16 @@ jobs:
           echo "🌐 Backend URL: $URL"
 
       - name: ✅ Health Check
+        if: secrets.GCP_SA_KEY != ''
         run: |
           sleep 10
           curl -f ${{ steps.get-url.outputs.service_url }}/api/health || echo "Health check pendiente"
+
+      - name: ⚠️ Deployment skipped
+        if: secrets.GCP_SA_KEY == ''
+        run: |
+          echo "⚠️ Deployment omitido - secretos de GCP no configurados"
+          echo "Configure GCP_SA_KEY, GCP_PROJECT_ID y otros secretos en GitHub Settings > Secrets"
 
     outputs:
       backend_url: ${{ steps.get-url.outputs.service_url }}
@@ -182,8 +203,11 @@ jobs:
     steps:
       - name: 📥 Checkout código
         uses: actions/checkout@v4
+        with:
+          submodules: false
 
       - name: 🔐 Autenticar con Google Cloud
+        if: secrets.GCP_SA_KEY != ''
         uses: google-github-actions/auth@v2
         with:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
