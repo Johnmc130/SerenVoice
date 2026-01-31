@@ -71,7 +71,8 @@ def get_history():
 def get_analisis_hoy():
     """Contar análisis realizados hoy (compatibilidad con frontend)"""
     try:
-        query = "SELECT COUNT(*) AS total FROM analisis WHERE fecha_analisis = CURRENT_DATE() AND activo = 1"
+        # La tabla analisis NO tiene columna 'activo', solo contar por fecha
+        query = "SELECT COUNT(*) AS total FROM analisis WHERE DATE(fecha_analisis) = CURRENT_DATE()"
         result = DatabaseConnection.execute_query(query)
         total = result[0]['total'] if result and len(result) > 0 else 0
 
