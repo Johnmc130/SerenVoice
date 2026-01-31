@@ -156,13 +156,13 @@ func MonitorDeployment(w http.ResponseWriter, r *http.Request) {
 
 	// Obtener información del despliegue
 	deployInfo := map[string]interface{}{
-		"project_id":   os.Getenv("GCP_PROJECT_ID"),
-		"region":       os.Getenv("FUNCTION_REGION"),
-		"function":     os.Getenv("FUNCTION_NAME"),
-		"memory":       os.Getenv("FUNCTION_MEMORY_MB"),
-		"timestamp":    time.Now(),
-		"environment":  "production",
-		"go_version":   "1.21",
+		"project_id":  os.Getenv("GCP_PROJECT_ID"),
+		"region":      os.Getenv("FUNCTION_REGION"),
+		"function":    os.Getenv("FUNCTION_NAME"),
+		"memory":      os.Getenv("FUNCTION_MEMORY_MB"),
+		"timestamp":   time.Now(),
+		"environment": "production",
+		"go_version":  "1.21",
 	}
 
 	response := Response{

@@ -1,5 +1,5 @@
 # backend/models/invitacion_grupo.py
-"""Modelo para la tabla invitaciones_grupo - Sistema de invitaciones a grupos"""
+"""Modelo para la tabla invitacion_grupo - Sistema de invitaciones a grupos"""
 from database.connection import DatabaseConnection
 from datetime import datetime, timedelta
 
@@ -12,30 +12,16 @@ class InvitacionGrupo:
                          mensaje=None, rol_propuesto='participante', dias_expiracion=7):
         """
         Crear una nueva invitación a un grupo.
-        
-        Args:
-            id_grupo: ID del grupo al que se invita
-            id_usuario_invitado: ID del usuario que recibe la invitación
-            id_usuario_invita: ID del usuario que envía la invitación
-            mensaje: Mensaje opcional del invitador
-            rol_propuesto: Rol que tendrá si acepta (default: participante)
-            dias_expiracion: Días hasta que expire la invitación
-            
-        Returns:
-            ID de la invitación creada o None si falla
         """
-        fecha_expiracion = datetime.now() + timedelta(days=dias_expiracion)
-        
+        # La tabla invitacion_grupo tiene: id_invitacion, id_grupo, id_invitador, id_invitado, estado, fecha_invitacion, fecha_respuesta
         query = """
-            INSERT INTO invitaciones_grupo 
-            (id_grupo, id_usuario_invitado, id_usuario_invita, mensaje, 
-             rol_propuesto, fecha_expiracion, activo)
-            VALUES (%s, %s, %s, %s, %s, %s, 1)
+            INSERT INTO invitacion_grupo 
+            (id_grupo, id_invitado, id_invitador, estado)
+            VALUES (%s, %s, %s, 'pendiente')
         """
         result = DatabaseConnection.execute_query(
             query,
-            (id_grupo, id_usuario_invitado, id_usuario_invita, mensaje, 
-             rol_propuesto, fecha_expiracion),
+            (id_grupo, id_usuario_invitado, id_usuario_invita),
             fetch=False
         )
         return result.get('last_id') if result else None
@@ -54,19 +40,12 @@ class InvitacionGrupo:
     def get_invitaciones_pendientes_usuario(id_usuario, limit=50):
         """
         Obtener invitaciones pendientes para un usuario.
-        
-        Args:
-            id_usuario: ID del usuario
-            limit: Límite de resultados
-            
-        Returns:
-            Lista de invitaciones pendientes con información completa
+        Vista tiene: id_invitado (no id_usuario_invitado), estado_invitacion (no estado)
         """
         query = """
             SELECT * FROM vista_invitaciones_grupo 
-            WHERE id_usuario_invitado = %s 
-              AND estado = 'pendiente'
-              AND (fecha_expiracion IS NULL OR fecha_expiracion > NOW())
+            WHERE id_invitado = %s 
+              AND estado_invitacion = 'pendiente'
             ORDER BY fecha_invitacion DESC
             LIMIT %s
         """
@@ -76,14 +55,6 @@ class InvitacionGrupo:
     def get_invitaciones_enviadas_grupo(id_grupo, estado=None, limit=50):
         """
         Obtener invitaciones enviadas por un grupo.
-        
-        Args:
-            id_grupo: ID del grupo
-            estado: Filtrar por estado (None = todos)
-            limit: Límite de resultados
-            
-        Returns:
-            Lista de invitaciones del grupo
         """
         query = """
             SELECT * FROM vista_invitaciones_grupo 
@@ -92,7 +63,7 @@ class InvitacionGrupo:
         params = [id_grupo]
         
         if estado:
-            query += " AND estado = %s"
+            query += " AND estado_invitacion = %s"
             params.append(estado)
         
         query += " ORDER BY fecha_invitacion DESC LIMIT %s"
@@ -104,17 +75,11 @@ class InvitacionGrupo:
     def get_historial_usuario(id_usuario, limit=50):
         """
         Obtener historial de invitaciones de un usuario (todas, no solo pendientes).
-        
-        Args:
-            id_usuario: ID del usuario
-            limit: Límite de resultados
-            
-        Returns:
-            Lista de todas las invitaciones del usuario
+        Vista tiene id_invitado (no id_usuario_invitado)
         """
         query = """
             SELECT * FROM vista_invitaciones_grupo 
-            WHERE id_usuario_invitado = %s
+            WHERE id_invitado = %s
             ORDER BY fecha_invitacion DESC
             LIMIT %s
         """
@@ -124,21 +89,13 @@ class InvitacionGrupo:
     def tiene_invitacion_pendiente(id_grupo, id_usuario):
         """
         Verificar si un usuario ya tiene una invitación pendiente para un grupo.
-        
-        Args:
-            id_grupo: ID del grupo
-            id_usuario: ID del usuario
-            
-        Returns:
-            La invitación pendiente si existe, None si no
+        Tabla tiene: id_invitado (no id_usuario_invitado)
         """
         query = """
-            SELECT * FROM invitaciones_grupo 
+            SELECT * FROM invitacion_grupo 
             WHERE id_grupo = %s 
-              AND id_usuario_invitado = %s 
+              AND id_invitado = %s 
               AND estado = 'pendiente'
-              AND activo = 1
-              AND (fecha_expiracion IS NULL OR fecha_expiracion > NOW())
         """
         results = DatabaseConnection.execute_query(query, (id_grupo, id_usuario))
         return results[0] if results else None
@@ -146,69 +103,76 @@ class InvitacionGrupo:
     @staticmethod
     def aceptar_invitacion(id_invitacion, id_usuario):
         """
-        Aceptar una invitación usando el procedimiento almacenado.
-        
-        Args:
-            id_invitacion: ID de la invitación
-            id_usuario: ID del usuario que acepta
-            
-        Returns:
-            dict con resultado o error
+        Aceptar una invitación.
         """
         try:
-            query = "CALL sp_aceptar_invitacion(%s, %s)"
-            result = DatabaseConnection.execute_query(query, (id_invitacion, id_usuario))
-            return {'success': True, 'data': result[0] if result else None}
+            # Primero verificar que la invitación existe y pertenece al usuario
+            query_check = """
+                SELECT * FROM invitacion_grupo 
+                WHERE id_invitacion = %s AND id_invitado = %s AND estado = 'pendiente'
+            """
+            invitacion = DatabaseConnection.execute_query(query_check, (id_invitacion, id_usuario))
+            
+            if not invitacion:
+                return {'success': False, 'error': 'Invitación no encontrada o no válida'}
+            
+            inv = invitacion[0]
+            
+            # Actualizar estado de la invitación
+            query_update = """
+                UPDATE invitacion_grupo 
+                SET estado = 'aceptada', fecha_respuesta = NOW()
+                WHERE id_invitacion = %s
+            """
+            DatabaseConnection.execute_query(query_update, (id_invitacion,), fetch=False)
+            
+            # Agregar usuario al grupo
+            query_insert = """
+                INSERT INTO grupo_miembro (id_grupo, id_usuario, rol_grupo, activo)
+                VALUES (%s, %s, 'miembro', 1)
+                ON DUPLICATE KEY UPDATE activo = 1
+            """
+            DatabaseConnection.execute_query(query_insert, (inv['id_grupo'], id_usuario), fetch=False)
+            
+            return {'success': True, 'data': {'message': 'Invitación aceptada correctamente'}}
         except Exception as e:
-            error_msg = str(e)
-            return {'success': False, 'error': error_msg}
+            return {'success': False, 'error': str(e)}
     
     @staticmethod
     def rechazar_invitacion(id_invitacion, id_usuario):
         """
-        Rechazar una invitación usando el procedimiento almacenado.
-        
-        Args:
-            id_invitacion: ID de la invitación
-            id_usuario: ID del usuario que rechaza
-            
-        Returns:
-            dict con resultado o error
+        Rechazar una invitación.
         """
         try:
-            query = "CALL sp_rechazar_invitacion(%s, %s)"
-            result = DatabaseConnection.execute_query(query, (id_invitacion, id_usuario))
-            return {'success': True, 'data': result[0] if result else None}
+            query = """
+                UPDATE invitacion_grupo 
+                SET estado = 'rechazada', fecha_respuesta = NOW()
+                WHERE id_invitacion = %s AND id_invitado = %s AND estado = 'pendiente'
+            """
+            result = DatabaseConnection.execute_query(query, (id_invitacion, id_usuario), fetch=False)
+            
+            if result.get('rowcount', 0) > 0:
+                return {'success': True, 'data': {'message': 'Invitación rechazada'}}
+            else:
+                return {'success': False, 'error': 'Invitación no encontrada'}
         except Exception as e:
-            error_msg = str(e)
-            return {'success': False, 'error': error_msg}
+            return {'success': False, 'error': str(e)}
     
     @staticmethod
     def cancelar_invitacion(id_invitacion, id_usuario_cancela):
         """
-        Cancelar una invitación (solo el invitador o facilitador puede cancelar).
-        
-        Args:
-            id_invitacion: ID de la invitación
-            id_usuario_cancela: ID del usuario que cancela
-            
-        Returns:
-            True si se canceló, False si no
+        Cancelar una invitación (solo el invitador puede cancelar).
         """
         query = """
-            UPDATE invitaciones_grupo 
+            UPDATE invitacion_grupo 
             SET estado = 'cancelada', fecha_respuesta = NOW()
             WHERE id_invitacion = %s 
               AND estado = 'pendiente'
-              AND (id_usuario_invita = %s OR EXISTS (
-                SELECT 1 FROM grupos g 
-                WHERE g.id_grupo = invitaciones_grupo.id_grupo 
-                  AND g.id_facilitador = %s
-              ))
+              AND id_invitador = %s
         """
         result = DatabaseConnection.execute_query(
             query, 
-            (id_invitacion, id_usuario_cancela, id_usuario_cancela), 
+            (id_invitacion, id_usuario_cancela), 
             fetch=False
         )
         return result.get('rowcount', 0) > 0
@@ -217,20 +181,13 @@ class InvitacionGrupo:
     def contar_invitaciones_pendientes(id_usuario):
         """
         Contar invitaciones pendientes de un usuario.
-        
-        Args:
-            id_usuario: ID del usuario
-            
-        Returns:
-            Número de invitaciones pendientes
+        Tabla tiene id_invitado (no id_usuario_invitado)
         """
         query = """
             SELECT COUNT(*) as total 
-            FROM invitaciones_grupo 
-            WHERE id_usuario_invitado = %s 
+            FROM invitacion_grupo 
+            WHERE id_invitado = %s 
               AND estado = 'pendiente'
-              AND activo = 1
-              AND (fecha_expiracion IS NULL OR fecha_expiracion > NOW())
         """
         result = DatabaseConnection.execute_query(query, (id_usuario,))
         return result[0]['total'] if result else 0
@@ -238,18 +195,13 @@ class InvitacionGrupo:
     @staticmethod
     def expirar_invitaciones_antiguas():
         """
-        Marcar como expiradas las invitaciones que han pasado su fecha límite.
-        Útil para ejecutar en un job programado.
-        
-        Returns:
-            Número de invitaciones expiradas
+        Marcar como expiradas las invitaciones antiguas (más de 30 días).
         """
         query = """
-            UPDATE invitaciones_grupo 
+            UPDATE invitacion_grupo 
             SET estado = 'expirada'
             WHERE estado = 'pendiente'
-              AND fecha_expiracion IS NOT NULL
-              AND fecha_expiracion < NOW()
+              AND fecha_invitacion < DATE_SUB(NOW(), INTERVAL 30 DAY)
         """
         result = DatabaseConnection.execute_query(query, fetch=False)
         return result.get('rowcount', 0)

@@ -207,8 +207,8 @@ const JuegoMindfulness = ({ juego, onFinish, onExit }) => {
         </div>
       )}
 
-      {/* Área del jardín - Full width */}
-      <div className="juego-garden-area" style={{ width: "100%", height: "400px", marginBottom: "1rem" }}>
+      {/* Área del jardín - Full width con max-width para PC */}
+      <div className="juego-garden-area" style={{ width: "100%", maxWidth: "800px", height: "500px", marginBottom: "1rem", margin: "0 auto 1rem auto" }}>
         {/* Suelo */}
         <div className="juego-garden-ground" />
 

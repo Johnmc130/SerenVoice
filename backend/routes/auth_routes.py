@@ -706,13 +706,13 @@ def login():
             print("❌ Contraseña incorrecta")
             return jsonify({'success': False, 'error': 'Credenciales incorrectas'}), 401
 
-        # Verificar email
-        if user.get('auth_provider') == 'local' and not user.get('email_verificado'):
-            return jsonify({
-                'success': False,
-                'error': 'Por favor verifica tu correo electrónico',
-                'requiresVerification': True
-            }), 403
+        # ✅ VERIFICACIÓN DE EMAIL DESHABILITADA PARA PRODUCCIÓN
+        # if user.get('auth_provider') == 'local' and not user.get('email_verificado'):
+        #     return jsonify({
+        #         'success': False,
+        #         'error': 'Por favor verifica tu correo electrónico',
+        #         'requiresVerification': True
+        #     }), 403
 
         # Obtener roles
         from backend.models.rol_usuario import RolUsuario

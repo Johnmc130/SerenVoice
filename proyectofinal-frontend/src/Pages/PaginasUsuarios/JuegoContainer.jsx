@@ -7,6 +7,7 @@ import JuegoPuzzle from "../../components/Juegos/JuegoPuzzle";
 import JuegoMemoria from "../../components/Juegos/JuegoMemoria";
 import JuegoMandala from "../../components/Juegos/JuegoMandala";
 import JuegoMindfulness from "../../components/Juegos/JuegoMindfulness";
+import { juegosAPI } from "../../services/apiClient";
 
 const JuegoContainer = () => {
   const location = useLocation();
@@ -25,17 +26,22 @@ const JuegoContainer = () => {
     logger.debug("Sesión de juego iniciada");
   }, [juego, navigate]);
 
-  const finalizarJuego = (puntuacion = 0, completado = true) => {
+  const finalizarJuego = async (puntuacion = 0, completado = true) => {
     const duracionSegundos = Math.floor((Date.now() - tiempoInicio) / 1000);
     
-    // Aquí podrías llamar a la API para guardar la sesión
-    logger.debug("Juego finalizado:", {
-      juegoId: juego.id,
-      estadoAntes,
-      duracionSegundos,
-      puntuacion,
-      completado
-    });
+    // Guardar sesión de juego en la API
+    try {
+      const resultado = await juegosAPI.finalizarJuego({
+        juego_id: juego.id_juego || juego.id,
+        puntuacion,
+        duracion_segundos: duracionSegundos,
+        completado,
+        estado_antes: estadoAntes || 'neutral'
+      });
+      logger.debug("Sesión de juego guardada:", resultado);
+    } catch (error) {
+      logger.error("Error guardando sesión de juego:", error);
+    }
 
     // Navegar de vuelta
     navigate("/juegos", {

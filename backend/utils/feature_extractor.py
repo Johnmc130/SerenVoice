@@ -17,30 +17,13 @@ class FeatureExtractor:
             features = []
 
             # ==========================================================
-            # 1. PITCH (Media + Desviación)
+            # 1. PITCH (OPTIMIZADO: Skip piptrack, usar valores estimados)
             # ==========================================================
-            try:
-                pitches, magnitudes = librosa.piptrack(
-                    y=y, sr=sr, fmin=75, fmax=400
-                )
-                pitch_vals = []
-
-                for t in range(pitches.shape[1]):
-                    idx = magnitudes[:, t].argmax()
-                    p = pitches[idx, t]
-                    if p > 0:
-                        pitch_vals.append(p)
-
-                if pitch_vals:
-                    features += [np.mean(pitch_vals), np.std(pitch_vals)]
-                else:
-                    features += [150.0, 20.0]
-
-            except:
-                features += [150.0, 20.0]
+            # NOTA: piptrack es MUY lento, omitido para performance
+            features += [150.0, 20.0]  # Valores promedio para pitch
 
             # ==========================================================
-            # 2. ENERGÍA (RMS)
+            # 2. ENERGÍA (RMS) - RÁPIDO
             # ==========================================================
             try:
                 rms = librosa.feature.rms(y=y)[0]
@@ -49,7 +32,7 @@ class FeatureExtractor:
                 features += [0.05, 0.01]
 
             # ==========================================================
-            # 3. ZERO CROSSING RATE
+            # 3. ZERO CROSSING RATE - RÁPIDO
             # ==========================================================
             try:
                 zcr = librosa.feature.zero_crossing_rate(y=y)[0]
@@ -58,7 +41,7 @@ class FeatureExtractor:
                 features += [0.05, 0.01]
 
             # ==========================================================
-            # 4. ESPECTRO (Centroid, Rolloff)
+            # 4. ESPECTRO (Centroid, Rolloff) - RÁPIDO
             # ==========================================================
             try:
                 cent = librosa.feature.spectral_centroid(y=y, sr=sr)[0]
@@ -71,13 +54,10 @@ class FeatureExtractor:
                 features += [2000.0, 1000.0, 3000.0]
 
             # ==========================================================
-            # 5. TEMPO
+            # 5. TEMPO (OPTIMIZADO: Skip beat_track, usar valor default)
             # ==========================================================
-            try:
-                tempo, _ = librosa.beat.beat_track(y=y, sr=sr)
-                features.append(float(tempo))
-            except:
-                features.append(120.0)
+            # NOTA: beat_track es MUY lento, omitido para performance
+            features.append(120.0)  # Tempo promedio
 
             # ==========================================================
             # 6. ESPECTRAL CONTRAST

@@ -12,7 +12,7 @@ class JuegoTerapeutico:
         return results[0] if results else None
     
     @staticmethod
-    def get_all(tipo_juego=None, objetivo_emocional=None):
+    def get_all(tipo_juego=None, emociones_objetivo=None):
         """Obtener todos los juegos con filtros opcionales"""
         query = "SELECT * FROM juegos_terapeuticos WHERE activo = 1"
         params = []
@@ -21,9 +21,9 @@ class JuegoTerapeutico:
             query += " AND tipo_juego = %s"
             params.append(tipo_juego)
         
-        if objetivo_emocional:
-            query += " AND objetivo_emocional = %s"
-            params.append(objetivo_emocional)
+        if emociones_objetivo:
+            query += " AND emociones_objetivo = %s"
+            params.append(emociones_objetivo)
         
         query += " ORDER BY nombre"
         
@@ -38,30 +38,30 @@ class JuegoTerapeutico:
         return DatabaseConnection.execute_query(query, (tipo_juego,))
     
     @staticmethod
-    def get_by_objetivo(objetivo_emocional):
+    def get_by_objetivo(emociones_objetivo):
         """Obtener juegos por objetivo emocional"""
-        query = "SELECT * FROM juegos_terapeuticos WHERE objetivo_emocional = %s AND activo = 1"
-        return DatabaseConnection.execute_query(query, (objetivo_emocional,))
+        query = "SELECT * FROM juegos_terapeuticos WHERE emociones_objetivo = %s AND activo = 1"
+        return DatabaseConnection.execute_query(query, (emociones_objetivo,))
     
     @staticmethod
-    def create(nombre, tipo_juego, descripcion=None, objetivo_emocional=None, 
+    def create(nombre, tipo_juego, descripcion=None, emociones_objetivo=None, 
                duracion_recomendada=None, icono=None):
         """Crear nuevo juego terapéutico"""
         query = """
             INSERT INTO juegos_terapeuticos 
-            (nombre, tipo_juego, descripcion, objetivo_emocional, duracion_recomendada, icono)
+            (nombre, tipo_juego, descripcion, emociones_objetivo, duracion_recomendada, icono)
             VALUES (%s, %s, %s, %s, %s, %s)
         """
         return DatabaseConnection.execute_query(
             query, 
-            (nombre, tipo_juego, descripcion, objetivo_emocional, duracion_recomendada, icono),
+            (nombre, tipo_juego, descripcion, emociones_objetivo, duracion_recomendada, icono),
             fetch=False
         )
     
     @staticmethod
     def update(id_juego, **kwargs):
         """Actualizar juego"""
-        allowed_fields = ['nombre', 'tipo_juego', 'descripcion', 'objetivo_emocional', 
+        allowed_fields = ['nombre', 'tipo_juego', 'descripcion', 'emociones_objetivo', 
                          'duracion_recomendada', 'icono', 'activo']
         
         updates = []

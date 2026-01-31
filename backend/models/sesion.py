@@ -37,7 +37,7 @@ class Sesion:
     @staticmethod
     def get_by_id(id_sesion):
         """Obtener sesión por ID"""
-        query = "SELECT * FROM sesion WHERE id_sesion = %s AND activo = 1"
+        query = "SELECT * FROM sesion WHERE id_sesion = %s AND activa = 1"
         results = DatabaseConnection.execute_query(query, (id_sesion,))
         return results[0] if results else None
     
@@ -46,7 +46,7 @@ class Sesion:
         """Obtener sesiones de un usuario"""
         query = """
             SELECT * FROM sesion 
-            WHERE id_usuario = %s AND activo = 1
+            WHERE id_usuario = %s AND activa = 1
             ORDER BY fecha_inicio DESC 
             LIMIT %s
         """
@@ -57,7 +57,7 @@ class Sesion:
         """Obtener sesiones activas de un usuario"""
         query = """
             SELECT * FROM sesion 
-            WHERE id_usuario = %s AND estado = 'activa' AND activo = 1
+            WHERE id_usuario = %s AND estado = 'activa' AND activa = 1
         """
         return DatabaseConnection.execute_query(query, (id_usuario,))
     

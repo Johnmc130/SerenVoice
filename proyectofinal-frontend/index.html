@@ -15,16 +15,14 @@
       font-src 'self' https://fonts.gstatic.com;
       img-src 'self' data: blob: https: http://localhost:*;
       media-src 'self' blob:;
-      connect-src 'self' http://localhost:* https://localhost:* https://accounts.google.com https://www.googleapis.com https://people.googleapis.com https://oauth2.googleapis.com;
+      connect-src 'self' http://localhost:* https://localhost:* https://accounts.google.com https://www.googleapis.com https://people.googleapis.com https://oauth2.googleapis.com https://*.run.app;
       frame-src 'self' https://accounts.google.com;
       object-src 'none';
       base-uri 'self';
       form-action 'self';
-      upgrade-insecure-requests;
     " />
     
-    <!-- Prevenir que el sitio sea embebido en iframes (clickjacking) -->
-    <meta http-equiv="X-Frame-Options" content="SAMEORIGIN" />
+    <!-- X-Frame-Options debe configurarse en headers HTTP, no meta tags -->
     
     <!-- Prevenir MIME type sniffing -->
     <meta http-equiv="X-Content-Type-Options" content="nosniff" />

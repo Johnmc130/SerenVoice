@@ -158,11 +158,15 @@ def get_allowed_origins() -> list:
 def get_cors_config() -> dict:
     """
     Retorna configuración CORS segura.
+    IMPORTANTE: React Native no envía Origin header, por lo que usamos "*" para móviles.
     """
     allowed_origins = get_allowed_origins()
     
+    # ⚠️ Para aplicaciones móviles nativas (React Native, Flutter, etc.),
+    # NO se envía el header Origin, por lo que necesitamos permitir "*"
+    # Esto es SEGURO porque las apps nativas no están sujetas a CORS.
     return {
-        "origins": allowed_origins,
+        "origins": "*",  # Permite todos los orígenes (necesario para React Native)
         "methods": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         "allow_headers": [
             "Content-Type",
@@ -177,7 +181,7 @@ def get_cors_config() -> dict:
             "X-RateLimit-Remaining",
             "X-RateLimit-Reset"
         ],
-        "supports_credentials": True,
+        "supports_credentials": False,  # ⚠️ DEBE ser False con origins="*"
         "max_age": 600  # Preflight cache: 10 minutos
     }
 

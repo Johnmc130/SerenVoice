@@ -177,6 +177,40 @@ export const juegosAPI = {
     return response.data;
   },
 
+  // Método combinado para guardar una sesión de juego completa
+  finalizarJuego: async (datos) => {
+    try {
+      // Primero iniciar la sesión
+      const sesionResponse = await apiClient.post(apiConfig.endpoints.juegos.iniciar, {
+        juego_id: datos.juego_id,
+        estado_antes: datos.estado_antes || 'neutral',
+      });
+      
+      const sesionId = sesionResponse.data?.data?.id_sesion || sesionResponse.data?.id_sesion;
+      
+      if (!sesionId) {
+        console.warn("No se pudo obtener el ID de sesión, guardando puntuación sin sesión");
+        return { success: true, puntuacion: datos.puntuacion };
+      }
+      
+      // Luego finalizar la sesión con los resultados
+      const finalResponse = await apiClient.post(apiConfig.endpoints.juegos.finalizar, {
+        sesion_id: sesionId,
+        puntuacion: datos.puntuacion,
+        completado: datos.completado,
+        duracion_segundos: datos.duracion_segundos,
+        estado_despues: 'mejor',
+        mejora_percibida: datos.puntuacion > 50,
+        notas: "",
+      });
+      
+      return finalResponse.data;
+    } catch (error) {
+      console.error("Error en finalizarJuego:", error);
+      throw error;
+    }
+  },
+
   estadisticas: async () => {
     const response = await apiClient.get(apiConfig.endpoints.juegos.estadisticas);
     return response.data;

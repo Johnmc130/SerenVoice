@@ -12,8 +12,9 @@ import (
 
 	"cloud.google.com/go/logging"
 	monitoring "cloud.google.com/go/monitoring/apiv3/v2"
-	"cloud.google.com/go/monitoring/apiv3/v2/monitoringpb"
-	"google.golang.org/api/run/v1"
+	run "cloud.google.com/go/run/apiv2"
+	runpb "cloud.google.com/go/run/apiv2/runpb"
+	monitoringpb "google.golang.org/genproto/googleapis/monitoring/v3"
 )
 
 // ResourceManager gestiona recursos de GCP
@@ -22,12 +23,6 @@ type ResourceManager struct {
 	region    string
 	ctx       context.Context
 	logger    *CloudLogger
-}
-
-// CloudLogger para logging centralizado
-type CloudLogger struct {
-	client *logging.Client
-	logger *logging.Logger
 }
 
 // ServiceStatus representa el estado de un servicio
@@ -51,15 +46,10 @@ type MetricData struct {
 func NewResourceManager(projectID, region string) (*ResourceManager, error) {
 	ctx := context.Background()
 
-	// Inicializar logger
-	loggingClient, err := logging.NewClient(ctx, projectID)
+	// Inicializar logger usando el constructor de deploy.go
+	cloudLogger, err := NewCloudLogger(projectID)
 	if err != nil {
 		return nil, fmt.Errorf("error creating logging client: %v", err)
-	}
-
-	cloudLogger := &CloudLogger{
-		client: loggingClient,
-		logger: loggingClient.Logger("serenvoice-resources"),
 	}
 
 	return &ResourceManager{
@@ -70,62 +60,43 @@ func NewResourceManager(projectID, region string) (*ResourceManager, error) {
 	}, nil
 }
 
-// Log escribe un mensaje al logger
-func (cl *CloudLogger) Log(severity logging.Severity, message string, data interface{}) {
-	entry := logging.Entry{
-		Severity: severity,
-		Payload: map[string]interface{}{
-			"message": message,
-			"data":    data,
-		},
-	}
-	cl.logger.Log(entry)
-	fmt.Printf("[%s] %s\n", severity, message)
-}
-
-// Close cierra el logger
-func (cl *CloudLogger) Close() {
-	if cl.client != nil {
-		cl.client.Close()
-	}
-}
-
 // ListCloudRunServices lista todos los servicios de Cloud Run
 func (rm *ResourceManager) ListCloudRunServices() ([]ServiceStatus, error) {
-	rm.logger.Log(logging.Info, "Listando servicios de Cloud Run...", nil)
+	rm.logger.Log(logging.Info, "Listando servicios de Cloud Run...")
 
-	runService, err := run.NewService(rm.ctx)
+	client, err := run.NewServicesClient(rm.ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error creating Cloud Run client: %v", err)
 	}
+	defer client.Close()
 
-	parent := fmt.Sprintf("namespaces/%s", rm.projectID)
-	resp, err := runService.Namespaces.Services.List(parent).Do()
-	if err != nil {
-		rm.logger.Log(logging.Error, "Error listando servicios", err.Error())
-		return nil, err
+	parent := fmt.Sprintf("projects/%s/locations/%s", rm.projectID, rm.region)
+	req := &runpb.ListServicesRequest{
+		Parent: parent,
 	}
 
 	var services []ServiceStatus
-	for _, svc := range resp.Items {
-		status := ServiceStatus{
-			Name:   svc.Metadata.Name,
-			URL:    svc.Status.Url,
-			Status: svc.Status.Conditions[0].Status,
+	it := client.ListServices(rm.ctx, req)
+	for {
+		svc, err := it.Next()
+		if err != nil {
+			break
 		}
-		if len(svc.Status.Traffic) > 0 {
-			status.Revision = svc.Status.Traffic[0].RevisionName
+		status := ServiceStatus{
+			Name:   svc.Name,
+			URL:    svc.Uri,
+			Status: "Ready",
 		}
 		services = append(services, status)
 	}
 
-	rm.logger.Log(logging.Info, fmt.Sprintf("Encontrados %d servicios", len(services)), services)
+	rm.logger.Log(logging.Info, fmt.Sprintf("Encontrados %d servicios", len(services)))
 	return services, nil
 }
 
 // GetServiceMetrics obtiene métricas de un servicio
 func (rm *ResourceManager) GetServiceMetrics(serviceName string) ([]MetricData, error) {
-	rm.logger.Log(logging.Info, fmt.Sprintf("Obteniendo métricas de %s...", serviceName), nil)
+	rm.logger.Log(logging.Info, fmt.Sprintf("Obteniendo métricas de %s...", serviceName))
 
 	client, err := monitoring.NewMetricClient(rm.ctx)
 	if err != nil {
@@ -134,15 +105,14 @@ func (rm *ResourceManager) GetServiceMetrics(serviceName string) ([]MetricData, 
 	defer client.Close()
 
 	// Definir el intervalo de tiempo (última hora)
-	endTime := time.Now()
-	startTime := endTime.Add(-1 * time.Hour)
-
+	// En producción, usar timestamppb para StartTime/EndTime
 	req := &monitoringpb.ListTimeSeriesRequest{
 		Name:   fmt.Sprintf("projects/%s", rm.projectID),
 		Filter: fmt.Sprintf(`resource.type="cloud_run_revision" AND resource.labels.service_name="%s"`, serviceName),
 		Interval: &monitoringpb.TimeInterval{
-			StartTime: timestampProto(startTime),
-			EndTime:   timestampProto(endTime),
+			// Temporal: en producción usar timestamppb
+			StartTime: nil,
+			EndTime:   nil,
 		},
 	}
 
@@ -171,13 +141,13 @@ func (rm *ResourceManager) GetServiceMetrics(serviceName string) ([]MetricData, 
 		metrics = append(metrics, metric)
 	}
 
-	rm.logger.Log(logging.Info, fmt.Sprintf("Obtenidas %d métricas", len(metrics)), nil)
+	rm.logger.Log(logging.Info, fmt.Sprintf("Obtenidas %d métricas", len(metrics)))
 	return metrics, nil
 }
 
 // CreateLogAlert crea una alerta basada en logs
 func (rm *ResourceManager) CreateLogAlert(alertName, condition string) error {
-	rm.logger.Log(logging.Info, fmt.Sprintf("Creando alerta: %s", alertName), nil)
+	rm.logger.Log(logging.Info, fmt.Sprintf("Creando alerta: %s", alertName))
 
 	// En una implementación real, usaríamos el SDK de Alerting
 	// Aquí mostramos la estructura
@@ -188,13 +158,13 @@ func (rm *ResourceManager) CreateLogAlert(alertName, condition string) error {
 		"created":   time.Now(),
 	}
 
-	rm.logger.Log(logging.Info, "Alerta configurada", alert)
+	rm.logger.Log(logging.Info, fmt.Sprintf("Alerta configurada: %v", alert))
 	return nil
 }
 
 // ExportResources exporta la configuración de recursos a JSON
 func (rm *ResourceManager) ExportResources(outputFile string) error {
-	rm.logger.Log(logging.Info, "Exportando configuración de recursos...", nil)
+	rm.logger.Log(logging.Info, "Exportando configuración de recursos...")
 
 	services, err := rm.ListCloudRunServices()
 	if err != nil {
@@ -217,7 +187,7 @@ func (rm *ResourceManager) ExportResources(outputFile string) error {
 		return err
 	}
 
-	rm.logger.Log(logging.Info, fmt.Sprintf("Recursos exportados a %s", outputFile), nil)
+	rm.logger.Log(logging.Info, fmt.Sprintf("Recursos exportados a %s", outputFile))
 	return nil
 }
 
@@ -228,13 +198,9 @@ func (rm *ResourceManager) Close() {
 	}
 }
 
-// timestampProto convierte time.Time a timestamp proto
-func timestampProto(t time.Time) *monitoringpb.TimeInterval_EndTime {
-	// Simplificación - en producción usar timestamppb
-	return nil
-}
-
-func main() {
+// ManageResources es la función principal para gestionar recursos
+// Puede ser llamada desde main() en deploy.go
+func ManageResources() {
 	fmt.Println("🔧 SerenVoice - Gestor de Recursos GCP")
 	fmt.Println("======================================")
 

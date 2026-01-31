@@ -12,6 +12,7 @@ class AudioService {
 
       const response = await apiClient.post(api.endpoints.audio.analyze, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 120000, // 120 segundos para análisis de audio (procesamiento ML)
       });
 
       return response.data;

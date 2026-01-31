@@ -31,14 +31,14 @@ class Grupo:
     @staticmethod
     def get_by_id(id_grupo):
         """Obtener grupo por ID"""
-        query = "SELECT * FROM grupos WHERE id_grupo = %s AND activo = 1"
+        query = "SELECT * FROM grupo WHERE id_grupo = %s AND activo = 1"
         results = DatabaseConnection.execute_query(query, (id_grupo,))
         return results[0] if results else None
     
     @staticmethod
     def get_by_codigo(codigo_acceso):
         """Obtener grupo por código de acceso"""
-        query = "SELECT * FROM grupos WHERE codigo_acceso = %s AND activo = 1"
+        query = "SELECT * FROM grupo WHERE codigo_acceso = %s AND activo = 1"
         results = DatabaseConnection.execute_query(query, (codigo_acceso,))
         return results[0] if results else None
     
@@ -55,7 +55,7 @@ class Grupo:
     @staticmethod
     def get_all(tipo_grupo=None, privacidad=None):
         """Obtener todos los grupos con filtros opcionales"""
-        query = "SELECT * FROM grupos WHERE activo = 1"
+        query = "SELECT * FROM grupo WHERE activo = 1"
         params = []
         
         if tipo_grupo:

@@ -307,8 +307,8 @@ const JuegoMandala = ({ juego, onFinish, onExit }) => {
                 <div
                   key={color}
                   onClick={() => setColorActual(color)}
-                  className={`color-swatch ${colorActual === color ? 'active' : ''}`}
-                  style={{ background: color }}
+                  className={`juego-color-swatch ${colorActual === color ? 'active' : ''}`}
+                  style={{ backgroundColor: color }}
                 />
               ))}
             </div>

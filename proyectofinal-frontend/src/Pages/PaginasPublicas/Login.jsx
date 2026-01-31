@@ -86,11 +86,13 @@ const Login = () => {
     } catch (err) {
       console.error("Error en login:", err);
       
-      // Verificar si el error es por email no verificado
+      // Verificar tipo de error
       if (err.message && err.message.includes("verifica tu correo")) {
         setError(
           "Tu cuenta no está verificada. Por favor, revisa tu correo electrónico y haz clic en el enlace de verificación."
         );
+      } else if (err.message && (err.message.includes("incorrecta") || err.message.includes("Credenciales"))) {
+        setError("Contraseña incorrecta. Por favor, verifica tus credenciales e intenta nuevamente.");
       } else {
         setError(
           err.message || "Error al iniciar sesión. Verifica tus credenciales."
@@ -360,21 +362,7 @@ const Login = () => {
                 {loading ? "Iniciando sesión..." : "Iniciar Sesión"}
               </button>
 
-              <div style={{ textAlign: "center", margin: "0.75rem 0" }}>
-                <Link 
-                  to="/olvide-mi-contrasena" 
-                  style={{
-                    color: "var(--color-primary)",
-                    textDecoration: "none",
-                    fontSize: "0.9rem",
-                    transition: "color 0.3s ease"
-                  }}
-                  onMouseEnter={(e) => e.target.style.color = "var(--color-primary-hover)"}
-                  onMouseLeave={(e) => e.target.style.color = "var(--color-primary)"}
-                >
-                  ¿Olvidaste tu contraseña?
-                </Link>
-              </div>
+
 
               <div className="divider">o</div>
 

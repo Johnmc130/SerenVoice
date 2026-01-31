@@ -3,8 +3,8 @@ import joblib
 import os
 import json
 from datetime import datetime
-from backend.utils.audio_processor import AudioProcessor
-from backend.utils.feature_extractor import FeatureExtractor
+from utils.audio_processor import AudioProcessor
+from utils.feature_extractor import FeatureExtractor
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
@@ -61,9 +61,12 @@ class AudioService:
     # ============================================================
     def analyze_audio(self, filepath, duration):
         try:
-            # Cargar audio directamente con librosa (más confiable)
+            # OPTIMIZACIÓN: Cargar solo primeros 30 segundos para análisis rápido
             import librosa
-            y, sr = librosa.load(filepath, sr=16000, mono=True)
+            max_duration = 30.0  # Limitar a 30 segundos máximo
+            
+            # Cargar audio con sample rate reducido (8000 Hz) para mayor velocidad
+            y, sr = librosa.load(filepath, sr=8000, mono=True, duration=max_duration)
             
             audio_data = {
                 'y': y,

@@ -200,38 +200,66 @@ def analyze_voice():
         max_emotion_value = 0.0
 
         # Buscar y extraer todas las emociones por nombre
+        # EVITAR DUPLICADOS: normalizar nombres de emociones
+        emotions_map = {}  # {nombre_normalizado: valor_maximo}
+        
         for e in emotions:
-            name = (e.get("name") or "").lower()
+            name_original = (e.get("name") or "")
+            name = name_original.lower().strip()
             val = float(e.get("value") or 0.0)
+            
+            # Normalizar nombres (remover acentos y unificar)
+            if "estr" in name:  # estrés o estres
+                name = "estres"
+            elif "felic" in name or "alegr" in name or "joy" in name:
+                name = "felicidad"
+            elif "trist" in name or "sad" in name:
+                name = "tristeza"
+            elif "mied" in name or "fear" in name:
+                name = "miedo"
+            elif "enoj" in name or "ira" in name or "anger" in name:
+                name = "enojo"
+            elif "sorp" in name or "surprise" in name:
+                name = "sorpresa"
+            elif "neutr" in name:
+                name = "neutral"
+            elif "ansie" in name or "anxiety" in name:
+                name = "ansiedad"
+            
+            # Guardar el valor máximo para cada emoción normalizada
+            if name in emotions_map:
+                emotions_map[name] = max(emotions_map[name], val)
+            else:
+                emotions_map[name] = val
             
             # Detectar emoción dominante
             if val > max_emotion_value:
                 max_emotion_value = val
-                emocion_dominante = e.get("name")
-            
-            # Mapear cada emoción
-            if "estrés" in name or "estres" in name:
-                nivel_estres = max(nivel_estres, val)
-            elif "ansiedad" in name:
-                nivel_ansiedad = max(nivel_ansiedad, val)
-            elif "felic" in name or "alegr" in name:
-                nivel_felicidad = max(nivel_felicidad, val)
-            elif "trist" in name:
-                nivel_tristeza = max(nivel_tristeza, val)
-            elif "mied" in name:
-                nivel_miedo = max(nivel_miedo, val)
-            elif "neutral" in name or "neutro" in name:
-                nivel_neutral = max(nivel_neutral, val)
-            elif "enojo" in name or "enoj" in name or "ira" in name:
-                nivel_enojo = max(nivel_enojo, val)
-            elif "sorp" in name:
-                nivel_sorpresa = max(nivel_sorpresa, val)
+                emocion_dominante = name_original
+        
+        # Asignar valores desde el mapa normalizado
+        nivel_estres = emotions_map.get("estres", 0.0)
+        nivel_ansiedad = emotions_map.get("ansiedad", 0.0)
+        nivel_felicidad = emotions_map.get("felicidad", 0.0)
+        nivel_tristeza = emotions_map.get("tristeza", 0.0)
+        nivel_miedo = emotions_map.get("miedo", 0.0)
+        nivel_neutral = emotions_map.get("neutral", 0.0)
+        nivel_enojo = emotions_map.get("enojo", 0.0)
+        nivel_sorpresa = emotions_map.get("sorpresa", 0.0)
 
         # Si no hay etiquetas explícitas de estrés/ansiedad, estimar con otras señales
         if nivel_estres == 0.0:
             nivel_estres = max(nivel_enojo * 0.6, nivel_sorpresa * 0.4)
+            emotions_map["estres"] = nivel_estres  # Agregar al map normalizado
         if nivel_ansiedad == 0.0:
             nivel_ansiedad = max(nivel_miedo * 0.6, nivel_tristeza * 0.4)
+            emotions_map["ansiedad"] = nivel_ansiedad  # Agregar al map normalizado
+
+        # Convertir emotions_map de vuelta a lista para respuesta (EVITA DUPLICADOS)
+        emotions_normalized = [
+            {"name": name, "value": round(value, 2)}
+            for name, value in emotions_map.items()
+        ]
 
         # Clasificación por umbrales
         max_score = max(nivel_estres, nivel_ansiedad)
@@ -328,6 +356,7 @@ def analyze_voice():
                 from models.analisis import Analisis
                 analisis_id = Analisis.create(
                     id_audio=audio_db_id,
+                    id_usuario=user_id,  # Agregar user_id
                     modelo_usado='modelo_v1.0',
                     estado='completado'
                 )
@@ -450,7 +479,7 @@ def analyze_voice():
             service.save_training_sample(
                 audio_db_id=audio_db_id,
                 features=features_data,
-                emotions=emotions,  # Usar la variable emotions ya extraída
+                emotions=emotions_normalized,  # Usar emociones normalizadas (sin duplicados)
                 duration=duration
             )
             print("[audio_routes] Sample de entrenamiento guardado.")
@@ -462,85 +491,32 @@ def analyze_voice():
         # --------------------------------------------------------
 
         try:
-            # Ya tenemos 'emotions' extraída correctamente arriba (líneas 169/174)
-            # NO sobrescribir aquí con results.get('emotions') que busca en nivel incorrecto
-            
-            # Inicializar niveles
+            # Usar directamente emotions_map que ya está normalizado
             niveles = {
-                'nivel_estres': 0.0,
-                'nivel_ansiedad': 0.0,
-                'nivel_felicidad': 0.0,
-                'nivel_tristeza': 0.0,
-                'nivel_miedo': 0.0,
-                'nivel_neutral': 0.0,
-                'nivel_enojo': 0.0,
-                'nivel_sorpresa': 0.0,
+                'nivel_estres': emotions_map.get("estres", 0.0),
+                'nivel_ansiedad': emotions_map.get("ansiedad", 0.0),
+                'nivel_felicidad': emotions_map.get("felicidad", 0.0),
+                'nivel_tristeza': emotions_map.get("tristeza", 0.0),
+                'nivel_miedo': emotions_map.get("miedo", 0.0),
+                'nivel_neutral': emotions_map.get("neutral", 0.0),
+                'nivel_enojo': emotions_map.get("enojo", 0.0),
+                'nivel_sorpresa': emotions_map.get("sorpresa", 0.0),
             }
 
-            # Mapear emociones a columnas
-            for e in emotions:
-                name = (e.get('name') or '').strip()
-                val = float(e.get('value') or 0.0)
-                if not name:
-                    continue
-                key = None
-                lname = name.lower()
-                if 'felic' in lname:
-                    key = 'nivel_felicidad'
-                elif 'trist' in lname:
-                    key = 'nivel_tristeza'
-                elif 'mied' in lname:
-                    key = 'nivel_miedo'
-                elif 'neutral' in lname or 'neutro' in lname:
-                    key = 'nivel_neutral'
-                elif 'enojo' in lname or 'enoj' in lname:
-                    key = 'nivel_enojo'
-                elif 'sorp' in lname:
-                    key = 'nivel_sorpresa'
-                elif 'estr' in lname:
-                    key = 'nivel_estres'
-                elif 'ansi' in lname:
-                    key = 'nivel_ansiedad'
-                if key:
-                    niveles[key] = val
-
-            # Si no se detectó estrés o ansiedad explícitamente, usar la misma lógica del pipeline
-            if niveles['nivel_estres'] == 0.0:
-                enojo = niveles['nivel_enojo']
-                sorpresa = niveles['nivel_sorpresa']
-                niveles['nivel_estres'] = max(enojo * 0.6, sorpresa * 0.4)
-            if niveles['nivel_ansiedad'] == 0.0:
-                miedo = niveles['nivel_miedo']
-                tristeza = niveles['nivel_tristeza']
-                niveles['nivel_ansiedad'] = max(miedo * 0.6, tristeza * 0.4)
-
-            # Ejecutar update solo si tenemos audio_db_id
+            # NOTA: Tabla 'audio' no tiene columnas emocionales, datos se guardan en resultado_analisis
+            # Este update está desactivado para evitar errores SQL
+            # if audio_db_id:
+            #     update_query = """
+            #         UPDATE audio SET
+            #           nivel_estres = %s, nivel_ansiedad = %s, nivel_felicidad = %s,
+            #           nivel_tristeza = %s, nivel_miedo = %s, nivel_neutral = %s,
+            #           nivel_enojo = %s, nivel_sorpresa = %s, procesado_por_ia = 1
+            #         WHERE id_audio = %s
+            #     """
+            #     DatabaseConnection.execute_update(update_query, (...))
+            
             if audio_db_id:
-                update_query = """
-                    UPDATE audio SET
-                      nivel_estres = %s,
-                      nivel_ansiedad = %s,
-                      nivel_felicidad = %s,
-                      nivel_tristeza = %s,
-                      nivel_miedo = %s,
-                      nivel_neutral = %s,
-                      nivel_enojo = %s,
-                      nivel_sorpresa = %s,
-                      procesado_por_ia = 1
-                    WHERE id_audio = %s
-                """
-                update_result = DatabaseConnection.execute_update(update_query, (
-                    niveles['nivel_estres'],
-                    niveles['nivel_ansiedad'],
-                    niveles['nivel_felicidad'],
-                    niveles['nivel_tristeza'],
-                    niveles['nivel_miedo'],
-                    niveles['nivel_neutral'],
-                    niveles['nivel_enojo'],
-                    niveles['nivel_sorpresa'],
-                    audio_db_id
-                ))
-                print(f"[audio_routes] Niveles guardados en audio_id={audio_db_id}: {niveles} | Resultado update: {update_result}")
+                print(f"[audio_routes] Niveles calculados para audio_id={audio_db_id}: {niveles}")
 
         except Exception as persist_levels_err:
             print('[audio_routes] Error guardando niveles en tabla audio:', persist_levels_err)
@@ -551,7 +527,7 @@ def analyze_voice():
         response_data = {
             "success": True,
             "mode": "authenticated" if user_id else "guest_test",
-            "emotions": emotions,  # Usar la variable extraída anteriormente
+            "emotions": emotions_normalized,  # Usar emociones normalizadas (sin duplicados)
             "confidence": confidence,  # Usar la variable extraída anteriormente
             "duration": duration,
             "audio_id": audio_db_id,

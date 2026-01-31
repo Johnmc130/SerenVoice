@@ -6,15 +6,15 @@ class Analisis:
     """Modelo para la tabla analisis"""
     
     @staticmethod
-    def create(id_audio, modelo_usado='modelo_v1.0', estado='procesando'):
+    def create(id_audio, id_usuario, modelo_usado='modelo_v1.0', estado='procesando'):
         """Crear nuevo análisis y devolver su ID"""
         query = """
-            INSERT INTO analisis (id_audio, modelo_usado, fecha_analisis, estado_analisis)
-            VALUES (%s, %s, %s, %s)
+            INSERT INTO analisis (id_audio, id_usuario, modelo_usado, fecha_analisis, estado_analisis)
+            VALUES (%s, %s, %s, %s, %s)
         """
         res = DatabaseConnection.execute_update(
             query,
-            (id_audio, modelo_usado, date.today(), estado)
+            (id_audio, id_usuario, modelo_usado, date.today(), estado)
         )
         return res.get('last_id')
     

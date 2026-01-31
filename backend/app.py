@@ -109,6 +109,10 @@ def create_app():
     app.config.from_object(Config)
     app.config["UPLOAD_FOLDER"] = "uploads"
     app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
+    
+    # ✅ Asegurar que JSON no escape caracteres Unicode (ñ, á, etc.)
+    app.config["JSON_AS_ASCII"] = False
+    app.json.ensure_ascii = False
 
     # ===============================
     # ✅ RATE LIMITING

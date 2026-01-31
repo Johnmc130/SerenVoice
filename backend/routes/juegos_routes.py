@@ -58,7 +58,7 @@ def juegos_recomendados():
                 print("[JUEGOS] Consultando base de datos (raw SQL)...")
                 # Construir consulta para tipos recomendados
                 placeholders = ','.join(['%s'] * len(tipos_recomendados))
-                sql = f"SELECT id_juego, id_juego as id, nombre, descripcion, tipo_juego, duracion_recomendada, objetivo_emocional, icono, activo FROM juegos_terapeuticos WHERE tipo_juego IN ({placeholders}) AND activo = 1 LIMIT 10"
+                sql = f"SELECT id_juego, id_juego as id, nombre, descripcion, tipo_juego, duracion_estimada, emociones_objetivo, icono, activo FROM juegos_terapeuticos WHERE tipo_juego IN ({placeholders}) AND activo = 1 LIMIT 10"
                 juegos_rows = DatabaseConnection.execute_query(sql, tuple(tipos_recomendados))
                 juegos_data = juegos_rows or []
                 print(f"[JUEGOS] OK - {len(juegos_data)} juegos encontrados en BD (raw)")
@@ -67,7 +67,7 @@ def juegos_recomendados():
                 if len(juegos_data) < 10:
                     try:
                         existentes_ids = {j['id_juego'] for j in juegos_data}
-                        sql_all = "SELECT id_juego, id_juego as id, nombre, descripcion, tipo_juego, duracion_recomendada, objetivo_emocional, icono, activo FROM juegos_terapeuticos WHERE activo = 1 ORDER BY id_juego"
+                        sql_all = "SELECT id_juego, id_juego as id, nombre, descripcion, tipo_juego, duracion_estimada, emociones_objetivo, icono, activo FROM juegos_terapeuticos WHERE activo = 1 ORDER BY id_juego"
                         all_active = DatabaseConnection.execute_query(sql_all)
                         added = 0
                         for row in all_active:
@@ -437,19 +437,19 @@ def crear_juego():
         
         descripcion = data.get('descripcion', '')
         tipo_juego = data.get('tipo_juego', 'puzzle')
-        duracion_recomendada = data.get('duracion_recomendada', 10)
-        objetivo_emocional = data.get('objetivo_emocional', '')
+        duracion_estimada = data.get('duracion_estimada', 10)
+        emociones_objetivo = data.get('emociones_objetivo', '')
         icono = data.get('icono', '🎮')
         activo = data.get('activo', True)
         
         sql = """
             INSERT INTO juegos_terapeuticos 
-            (nombre, descripcion, tipo_juego, duracion_recomendada, objetivo_emocional, icono, activo)
+            (nombre, descripcion, tipo_juego, duracion_estimada, emociones_objetivo, icono, activo)
             VALUES (%s, %s, %s, %s, %s, %s, %s)
         """
         DatabaseConnection.execute_query(
             sql, 
-            (nombre, descripcion, tipo_juego, duracion_recomendada, objetivo_emocional, icono, 1 if activo else 0)
+            (nombre, descripcion, tipo_juego, duracion_estimada, emociones_objetivo, icono, 1 if activo else 0)
         )
         
         # Obtener el juego recién creado
@@ -486,12 +486,12 @@ def actualizar_juego(juego_id):
         if 'tipo_juego' in data:
             campos.append('tipo_juego = %s')
             valores.append(data['tipo_juego'])
-        if 'duracion_recomendada' in data:
-            campos.append('duracion_recomendada = %s')
-            valores.append(data['duracion_recomendada'])
-        if 'objetivo_emocional' in data:
-            campos.append('objetivo_emocional = %s')
-            valores.append(data['objetivo_emocional'])
+        if 'duracion_estimada' in data:
+            campos.append('duracion_estimada = %s')
+            valores.append(data['duracion_estimada'])
+        if 'emociones_objetivo' in data:
+            campos.append('emociones_objetivo = %s')
+            valores.append(data['emociones_objetivo'])
         if 'icono' in data:
             campos.append('icono = %s')
             valores.append(data['icono'])
