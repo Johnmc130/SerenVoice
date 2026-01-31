@@ -5,9 +5,9 @@ from datetime import datetime
 class Analisis:
     """Modelo para la tabla analisis
     
-    Estructura REAL de la tabla en producción (Railway/Cloud):
+    Estructura ACTUALIZADA después de migración (Railway/Cloud - Enero 2026):
     - id_analisis (int, PK)
-    - id_usuario (int, FK) - SÍ existe en la tabla real
+    - id_usuario (int, FK) ✅ Existe
     - id_audio (int, FK)
     - modelo_usado (varchar 50)
     - version_modelo (varchar 20)
@@ -17,9 +17,12 @@ class Analisis:
     - confianza_prediccion (decimal 5,2)
     - fecha_analisis (timestamp)
     - metadata (json)
-    - estado_analisis (varchar 20) - NO es ENUM, es varchar
+    - estado_analisis (varchar 20) - NO es ENUM
     - confianza (decimal 5,2)
     - notas (text)
+    - duracion_procesamiento (float) ✅ NUEVO
+    - eliminado (tinyint) ✅ NUEVO
+    - activo (tinyint) ✅ NUEVO
     """
     
     @staticmethod
@@ -52,17 +55,19 @@ class Analisis:
     
     @staticmethod
     def get_by_id(id_analisis):
-        """Obtener análisis por ID"""
-        # La tabla real NO tiene columna 'activo'
-        query = "SELECT * FROM analisis WHERE id_analisis = %s"
+        """Obtener análisis por ID (solo activos)"""
+        query = "SELECT * FROM analisis WHERE id_analisis = %s AND activo = 1"
         results = DatabaseConnection.execute_query(query, (id_analisis,))
         return results[0] if results else None
     
     @staticmethod
     def get_by_audio(id_audio):
-        """Obtener análisis de un audio"""
-        # La tabla real NO tiene columna 'activo'
-        query = "SELECT * FROM analisis WHERE id_audio = %s ORDER BY fecha_analisis DESC LIMIT 1"
+        """Obtener análisis de un audio (solo activos)"""
+        query = """
+            SELECT * FROM analisis 
+            WHERE id_audio = %s AND activo = 1 AND eliminado = 0
+            ORDER BY fecha_analisis DESC LIMIT 1
+        """
         results = DatabaseConnection.execute_query(query, (id_audio,))
         return results[0] if results else None
     
@@ -91,14 +96,14 @@ class Analisis:
     
     @staticmethod
     def get_all_complete(id_usuario=None, estado=None, limit=50, offset=0):
-        """Obtener todos los análisis completos con filtros opcionales"""
+        """Obtener todos los análisis completos con filtros opcionales (solo activos)"""
         # Usar JOIN directo en lugar de depender de vista
         query = """
             SELECT a.*, ra.nivel_estres, ra.nivel_ansiedad, ra.clasificacion,
                    ra.emocion_dominante, ra.confianza_modelo
             FROM analisis a
             LEFT JOIN resultado_analisis ra ON a.id_analisis = ra.id_analisis
-            WHERE 1=1
+            WHERE a.activo = 1 AND a.eliminado = 0
         """
         params = []
         
@@ -118,14 +123,20 @@ class Analisis:
     @staticmethod
     def update_status(id_analisis, estado):
         """Actualizar estado del análisis"""
-        # La tabla real NO tiene columna 'duracion_procesamiento'
         query = "UPDATE analisis SET estado_analisis = %s WHERE id_analisis = %s"
         DatabaseConnection.execute_query(query, (estado, id_analisis), fetch=False)
         return True
     
     @staticmethod
+    def soft_delete(id_analisis):
+        """Eliminar análisis (soft delete usando eliminado y activo)"""
+        query = "UPDATE analisis SET eliminado = 1, activo = 0 WHERE id_analisis = %s"
+        DatabaseConnection.execute_query(query, (id_analisis,), fetch=False)
+        return True
+    
+    @staticmethod
     def delete(id_analisis):
-        """Eliminar análisis (hard delete ya que no hay columnas activo/eliminado)"""
+        """Eliminar análisis permanentemente (hard delete) - usar con precaución"""
         query = "DELETE FROM analisis WHERE id_analisis = %s"
         DatabaseConnection.execute_query(query, (id_analisis,), fetch=False)
         return True

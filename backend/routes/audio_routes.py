@@ -329,43 +329,41 @@ def analyze_voice():
             if user_id:
                 print(f'[audio_routes] Guardando audio en BD para user_id={user_id}')
                 
-                conn = DatabaseConnection.get_connection()
-                cursor = conn.cursor()
+                # Usar el modelo Audio actualizado que ahora soporta emociones
+                from models.audio import Audio
+                
+                audio_db_id = Audio.create(
+                    id_usuario=user_id,
+                    nombre_archivo=filename,
+                    ruta_archivo=filename,
+                    duracion=duration,
+                    nivel_estres=round(nivel_estres, 2),
+                    nivel_ansiedad=round(nivel_ansiedad, 2),
+                    nivel_felicidad=round(nivel_felicidad, 2),
+                    nivel_tristeza=round(nivel_tristeza, 2),
+                    nivel_miedo=round(nivel_miedo, 2),
+                    nivel_neutral=round(nivel_neutral, 2),
+                    nivel_enojo=round(nivel_enojo, 2),
+                    nivel_sorpresa=round(nivel_sorpresa, 2),
+                    procesado_por_ia=True
+                )
 
-                # Convertir duración a int para compatibilidad con la BD real
-                duration_int = int(duration) if duration else 0
+                if not audio_db_id:
+                    raise Exception('No se pudo guardar el audio en la base de datos')
 
-                # Query compatible con estructura REAL de la tabla audio en producción:
-                # Columnas reales: id_usuario, nombre_archivo, ruta_archivo, duracion, 
-                # duracion_segundos, fecha_grabacion, procesado
-                insert_query = """
-                    INSERT INTO audio
-                    (id_usuario, nombre_archivo, ruta_archivo, duracion, duracion_segundos, fecha_grabacion, procesado)
-                    VALUES (%s, %s, %s, %s, %s, NOW(), 0)
-                """
-
-                cursor.execute(insert_query, (
-                    user_id,
-                    filename,
-                    filename,
-                    duration_int,
-                    duration_int
-                ))
-
-                conn.commit()
-                audio_db_id = cursor.lastrowid
-                cursor.close()
-                DatabaseConnection.return_connection(conn)
-
-                print(f"[audio_routes] Audio guardado en BD con ID {audio_db_id}")
+                print(f"[audio_routes] Audio guardado en BD con ID {audio_db_id} (CON emociones)")
                 
                 # Crear registro de análisis
                 from models.analisis import Analisis
                 analisis_id = Analisis.create(
                     id_audio=audio_db_id,
-                    id_usuario=user_id,  # Agregar user_id
+                    id_usuario=user_id,
                     modelo_usado='modelo_v1.0',
-                    estado='completado'
+                    estado='completado',
+                    nivel_estres=round(nivel_estres, 2),
+                    nivel_ansiedad=round(nivel_ansiedad, 2),
+                    emocion_detectada=emocion_dominante,
+                    confianza=round(confidence, 2)
                 )
 
                 if not analisis_id:
