@@ -140,7 +140,7 @@ class ActividadesService:
             
             cursor.execute("""
                 SELECT 
-                    pa.id_participacion,
+                    pa.id,
                     pa.id_usuario,
                     pa.estado,
                     pa.completada,

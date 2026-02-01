@@ -28,7 +28,7 @@ class ParticipacionActividad:
             FROM participacion_actividad pa
             JOIN usuario u ON pa.id_usuario = u.id_usuario
             JOIN actividades_grupo ag ON pa.id_actividad = ag.id_actividad
-            WHERE pa.id_participacion = %s
+            WHERE pa.id = %s
         """
         results = DatabaseConnection.execute_query(query, (id_participacion,))
         return results[0] if results else None
@@ -41,7 +41,7 @@ class ParticipacionActividad:
             FROM participacion_actividad pa
             JOIN usuario u ON pa.id_usuario = u.id_usuario
             WHERE pa.id_actividad = %s
-            ORDER BY pa.fecha_completada DESC, pa.id_participacion DESC
+            ORDER BY pa.fecha_completada DESC, pa.id DESC
         """
         return DatabaseConnection.execute_query(query, (id_actividad,))
     
@@ -84,7 +84,7 @@ class ParticipacionActividad:
                 fecha_completada = NOW(),
                 estado_emocional_despues = %s,
                 notas_participante = COALESCE(%s, notas_participante)
-            WHERE id_participacion = %s
+            WHERE id = %s
         """
         DatabaseConnection.execute_query(
             query, 
@@ -96,7 +96,7 @@ class ParticipacionActividad:
     @staticmethod
     def update_notas(id_participacion, notas):
         """Actualizar notas de participación"""
-        query = "UPDATE participacion_actividad SET notas_participante = %s WHERE id_participacion = %s"
+        query = "UPDATE participacion_actividad SET notas_participante = %s WHERE id = %s"
         DatabaseConnection.execute_query(query, (notas, id_participacion), fetch=False)
         return True
     

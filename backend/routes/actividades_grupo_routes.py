@@ -788,7 +788,7 @@ def obtener_participantes(id_actividad):
         
         cursor.execute("""
             SELECT 
-                pa.id_participacion,
+                pa.id,
                 pa.id_usuario,
                 CASE 
                     WHEN pa.completada = 1 THEN 'completado'

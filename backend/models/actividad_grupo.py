@@ -214,7 +214,7 @@ class ParticipacionActividad:
                     WHEN pa.completada = 1 THEN 'completado'
                     WHEN pa.conectado = 1 THEN 'conectado'
                     ELSE 'pendiente'
-                END as estado,
+                END as estado_participante,
                 ra.id_resultado as ra_id_resultado,
                 ra.emocion_dominante as ra_emocion_dominante,
                 ra.nivel_felicidad as ra_nivel_felicidad,
@@ -229,7 +229,7 @@ class ParticipacionActividad:
             JOIN usuario u ON pa.id_usuario = u.id_usuario
             LEFT JOIN resultado_analisis ra ON pa.id_resultado = ra.id_resultado
             WHERE pa.id_actividad = %s
-            ORDER BY pa.fecha_completada DESC, pa.id_participacion DESC
+            ORDER BY pa.fecha_completada DESC, pa.id DESC
         """
         results = DatabaseConnection.execute_query(query, (id_actividad,))
         
@@ -237,7 +237,7 @@ class ParticipacionActividad:
         participantes = []
         for p in results:
             participante = {
-                'id_participacion': p.get('id_participacion'),
+                'id': p.get('id'),
                 'id_actividad': p.get('id_actividad'),
                 'id_usuario': p.get('id_usuario'),
                 'completada': p.get('completada'),
@@ -252,7 +252,7 @@ class ParticipacionActividad:
                 'apellido': p.get('apellido'),
                 'correo': p.get('correo'),
                 'foto_perfil': p.get('foto_perfil'),
-                'estado': p.get('estado')
+                'estado': p.get('estado_participante')
             }
             
             # Si tiene resultado de análisis, agregarlo como objeto anidado
