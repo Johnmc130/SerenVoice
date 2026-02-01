@@ -213,13 +213,7 @@ def listar_juegos():
 @juegos_bp.route('/iniciar', methods=['POST'])
 @jwt_required()
 def iniciar_juego():
-    """Inicia una nueva sesión de juego"""
-    if not (HAS_MODELS and HAS_DB):
-        return jsonify({
-            'success': False, 
-            'error': 'Modelos de base de datos no disponibles'
-        }), 503
-    
+    """Inicia una nueva sesión de juego usando raw SQL para mayor estabilidad"""
     try:
         current_user_id = get_jwt_identity()
         # Convertir a int si es string
@@ -234,47 +228,45 @@ def iniciar_juego():
         if not juego_id:
             return jsonify({'success': False, 'error': 'juego_id es requerido'}), 400
         
-        juego = JuegoTerapeutico.query.get(juego_id)
-        if not juego:
+        # Verificar que el juego existe usando raw SQL
+        sql_check = "SELECT id_juego, nombre FROM juegos_terapeuticos WHERE id_juego = %s AND activo = 1"
+        juego_result = DatabaseConnection.execute_query(sql_check, (juego_id,))
+        
+        if not juego_result:
             return jsonify({'success': False, 'error': 'Juego no encontrado'}), 404
         
-        nueva_sesion = SesionJuego(
-            id_usuario=current_user_id,
-            id_juego=juego_id,
-            estado_antes=estado_antes,
-            fecha_inicio=datetime.utcnow()
+        # Crear sesión usando raw SQL
+        sql_insert = """
+            INSERT INTO sesiones_juego (id_usuario, id_juego, estado_antes, fecha_inicio)
+            VALUES (%s, %s, %s, NOW())
+        """
+        result = DatabaseConnection.execute_query(
+            sql_insert, 
+            (current_user_id, juego_id, estado_antes),
+            fetch=False
         )
         
-        db.session.add(nueva_sesion)
-        db.session.commit()
+        sesion_id = result.get('last_id') if result else None
         
-        print(f"[JUEGOS] OK - Sesion iniciada - Usuario: {current_user_id}, Juego: {juego_id}")
+        print(f"[JUEGOS] OK - Sesion iniciada (raw SQL) - Usuario: {current_user_id}, Juego: {juego_id}, Sesion: {sesion_id}")
         
         return jsonify({
             'success': True,
-            'sesion_id': nueva_sesion.id,
+            'sesion_id': sesion_id,
             'mensaje': 'Sesión de juego iniciada correctamente'
         }), 201
-    except SQLAlchemyError as e:
-        db.session.rollback()
-        print(f"[ERROR] Error BD al iniciar juego: {e}")
-        return jsonify({'success': False, 'error': 'Error en la base de datos'}), 500
+        
     except Exception as e:
-        db.session.rollback()
         print(f"[ERROR] Error al iniciar juego: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @juegos_bp.route('/finalizar', methods=['POST'])
 @jwt_required()
 def finalizar_juego():
-    """Finaliza una sesión de juego y guarda los resultados"""
-    if not (HAS_MODELS and HAS_DB):
-        return jsonify({
-            'success': False, 
-            'error': 'Modelos de base de datos no disponibles'
-        }), 503
-    
+    """Finaliza una sesión de juego y guarda los resultados usando raw SQL"""
     try:
         current_user_id = get_jwt_identity()
         # Convertir a int si es string para comparación correcta
@@ -289,97 +281,134 @@ def finalizar_juego():
         if not sesion_id:
             return jsonify({'success': False, 'error': 'sesion_id es requerido'}), 400
         
-        sesion = SesionJuego.query.get(sesion_id)
-        if not sesion:
+        # Verificar que la sesión existe y pertenece al usuario
+        sql_check = "SELECT id, id_usuario, id_juego, fecha_inicio FROM sesiones_juego WHERE id = %s"
+        sesion_result = DatabaseConnection.execute_query(sql_check, (sesion_id,))
+        
+        if not sesion_result:
             print(f"[JUEGOS] ERROR - Sesión no encontrada: {sesion_id}")
             return jsonify({'success': False, 'error': 'Sesión no encontrada'}), 404
         
-        print(f"[JUEGOS] Sesión encontrada - ID: {sesion_id}, Usuario de sesión: {sesion.id_usuario}, Usuario actual: {current_user_id}, Tipo: {type(sesion.id_usuario)} vs {type(current_user_id)}")
+        sesion = sesion_result[0]
         
-        if sesion.id_usuario != current_user_id:
+        if sesion['id_usuario'] != current_user_id:
             print(f"[JUEGOS] ERROR 403 - Usuario no autorizado")
             return jsonify({'success': False, 'error': 'No autorizado'}), 403
-        
-        sesion.fecha_fin = datetime.utcnow()
-        sesion.duracion_segundos = int((sesion.fecha_fin - sesion.fecha_inicio).total_seconds())
-        sesion.puntuacion = data.get('puntuacion', 0)
-        sesion.completado = data.get('completado', False)
-        sesion.estado_despues = data.get('estado_despues', sesion.estado_antes)
         
         # Convertir mejora_percibida de string a int si es necesario (DB espera int)
         mejora = data.get('mejora_percibida', 0)
         if isinstance(mejora, str):
             # Mapeo de valores string a int: peor=-1, igual=0, mejor=1
             mejora_map = {'peor': -1, 'igual': 0, 'mejor': 1, 'no_especificado': 0}
-            sesion.mejora_percibida = mejora_map.get(mejora.lower(), 0)
+            mejora_int = mejora_map.get(mejora.lower(), 0)
         else:
-            sesion.mejora_percibida = int(mejora) if mejora is not None else 0
+            mejora_int = int(mejora) if mejora is not None else 0
         
-        sesion.notas = data.get('notas', '')
+        # Actualizar sesión
+        sql_update = """
+            UPDATE sesiones_juego 
+            SET fecha_fin = NOW(),
+                duracion_segundos = TIMESTAMPDIFF(SECOND, fecha_inicio, NOW()),
+                puntuacion = %s,
+                completado = %s,
+                estado_despues = %s,
+                mejora_percibida = %s,
+                notas = %s
+            WHERE id = %s
+        """
+        DatabaseConnection.execute_query(
+            sql_update,
+            (
+                data.get('puntuacion', 0),
+                1 if data.get('completado', False) else 0,
+                data.get('estado_despues', 'no_definido'),
+                mejora_int,
+                data.get('notas', ''),
+                sesion_id
+            ),
+            fetch=False
+        )
         
-        db.session.commit()
+        # Obtener la sesión actualizada
+        sql_get = """
+            SELECT s.*, j.nombre as juego_nombre 
+            FROM sesiones_juego s 
+            LEFT JOIN juegos_terapeuticos j ON s.id_juego = j.id_juego 
+            WHERE s.id = %s
+        """
+        sesion_actualizada = DatabaseConnection.execute_query(sql_get, (sesion_id,))
         
         print(f"[JUEGOS] OK - Sesion finalizada - ID: {sesion_id}")
         
         return jsonify({
             'success': True,
-            'sesion': sesion.to_dict(),
+            'sesion': sesion_actualizada[0] if sesion_actualizada else None,
             'mensaje': 'Sesión finalizada correctamente'
         }), 200
-    except SQLAlchemyError as e:
-        db.session.rollback()
-        print(f"[ERROR] Error BD al finalizar juego: {e}")
-        return jsonify({'success': False, 'error': 'Error en la base de datos'}), 500
+        
     except Exception as e:
-        db.session.rollback()
         print(f"[ERROR] Error al finalizar juego: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @juegos_bp.route('/estadisticas', methods=['GET'])
 @jwt_required()
 def estadisticas_juegos():
-    """Obtiene estadísticas de juegos del usuario"""
-    if not (HAS_MODELS and HAS_DB):
-        return jsonify({
-            'success': False, 
-            'error': 'Modelos de base de datos no disponibles'
-        }), 503
-    
+    """Obtiene estadísticas de juegos del usuario usando raw SQL"""
     try:
         current_user_id = get_jwt_identity()
         # Convertir a int si es string
         if isinstance(current_user_id, str):
             current_user_id = int(current_user_id)
-            
-        sesiones = SesionJuego.query.filter_by(id_usuario=current_user_id).all()
         
-        total_sesiones = len(sesiones)
-        sesiones_completadas = len([s for s in sesiones if s.completado])
-        puntuacion_total = sum(s.puntuacion for s in sesiones)
+        # Consulta de estadísticas
+        sql_stats = """
+            SELECT 
+                COUNT(*) as total_sesiones,
+                SUM(CASE WHEN completado = 1 THEN 1 ELSE 0 END) as sesiones_completadas,
+                COALESCE(SUM(puntuacion), 0) as puntuacion_total,
+                SUM(CASE WHEN mejora_percibida > 0 THEN 1 ELSE 0 END) as veces_mejorado
+            FROM sesiones_juego 
+            WHERE id_usuario = %s
+        """
+        stats_result = DatabaseConnection.execute_query(sql_stats, (current_user_id,))
+        stats = stats_result[0] if stats_result else {}
         
-        juegos_count = {}
-        for sesion in sesiones:
-            juego_nombre = sesion.juego.nombre if sesion.juego else 'Desconocido'
-            juegos_count[juego_nombre] = juegos_count.get(juego_nombre, 0) + 1
+        # Juego más jugado
+        sql_top_game = """
+            SELECT j.nombre, COUNT(*) as veces
+            FROM sesiones_juego s
+            JOIN juegos_terapeuticos j ON s.id_juego = j.id_juego
+            WHERE s.id_usuario = %s
+            GROUP BY s.id_juego, j.nombre
+            ORDER BY veces DESC
+            LIMIT 1
+        """
+        top_game_result = DatabaseConnection.execute_query(sql_top_game, (current_user_id,))
+        juego_mas_jugado = top_game_result[0]['nombre'] if top_game_result else None
         
-        juego_mas_jugado = max(juegos_count.items(), key=lambda x: x[1])[0] if juegos_count else None
-        mejoras = [s for s in sesiones if s.mejora_percibida in ['mejor', 'mucho_mejor']]
+        total_sesiones = int(stats.get('total_sesiones', 0) or 0)
+        veces_mejorado = int(stats.get('veces_mejorado', 0) or 0)
         
         return jsonify({
             'success': True,
             'estadisticas': {
                 'total_sesiones': total_sesiones,
-                'sesiones_completadas': sesiones_completadas,
-                'puntuacion_total': puntuacion_total,
+                'sesiones_completadas': int(stats.get('sesiones_completadas', 0) or 0),
+                'puntuacion_total': int(stats.get('puntuacion_total', 0) or 0),
                 'juego_mas_jugado': juego_mas_jugado,
-                'veces_mejorado': len(mejoras),
-                'tasa_mejora': round(len(mejoras) / total_sesiones * 100, 2) if total_sesiones else 0
+                'veces_mejorado': veces_mejorado,
+                'tasa_mejora': round(veces_mejorado / total_sesiones * 100, 2) if total_sesiones else 0
             }
         }), 200
-    except SQLAlchemyError as e:
-        print(f"[ERROR] Error BD en estadisticas: {e}")
-        return jsonify({'success': False, 'error': 'Error en la base de datos'}), 500
+        
+    except Exception as e:
+        print(f"[ERROR] Error en estadisticas: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
     except Exception as e:
         print(f"[ERROR] Error en estadisticas: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
