@@ -8,10 +8,15 @@ class JuegoTerapeutico(db.Model):
     nombre = db.Column(db.String(100), nullable=False)
     tipo_juego = db.Column(db.String(20), nullable=False)
     descripcion = db.Column(db.Text)
-    objetivo_emocional = db.Column(db.String(20))
-    duracion_recomendada = db.Column(db.Integer)  # en minutos
-    icono = db.Column(db.String(10))
+    # Columnas que coinciden con Railway DB
+    duracion_estimada = db.Column(db.Integer, default=5)  # En Railway es duracion_estimada
+    nivel_dificultad = db.Column(db.String(10), default='facil')
+    emociones_objetivo = db.Column(db.JSON)  # En Railway es JSON, no String
+    instrucciones = db.Column(db.Text)
+    icono = db.Column(db.String(10), default='?')
+    color_tema = db.Column(db.String(7), default='#4CAF50')
     activo = db.Column(db.Boolean, default=True)
+    orden = db.Column(db.Integer, default=0)
     
     # Relación con sesiones
     sesiones = db.relationship('SesionJuego', backref='juego', lazy=True)
@@ -23,10 +28,14 @@ class JuegoTerapeutico(db.Model):
             'nombre': self.nombre,
             'tipo_juego': self.tipo_juego,
             'descripcion': self.descripcion,
-            'objetivo_emocional': self.objetivo_emocional,
-            'duracion_recomendada': self.duracion_recomendada,
+            'emociones_objetivo': self.emociones_objetivo,
+            'duracion_estimada': self.duracion_estimada,
+            'duracion_recomendada': self.duracion_estimada,  # Alias para compatibilidad
+            'nivel_dificultad': self.nivel_dificultad,
             'icono': self.icono,
-            'activo': self.activo
+            'color_tema': self.color_tema,
+            'activo': self.activo,
+            'orden': self.orden
         }
 
 
@@ -50,9 +59,9 @@ class SesionJuego(db.Model):
     completado = db.Column(db.Boolean, default=False)
     
     # Estado emocional
-    estado_antes = db.Column(db.String(20))
-    estado_despues = db.Column(db.String(20))
-    mejora_percibida = db.Column(db.String(20))
+    estado_antes = db.Column(db.String(50))  # varchar(50) en Railway
+    estado_despues = db.Column(db.String(50))  # varchar(50) en Railway
+    mejora_percibida = db.Column(db.Integer)  # int en Railway, no String
     
     notas = db.Column(db.Text)
     

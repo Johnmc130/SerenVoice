@@ -305,7 +305,16 @@ def finalizar_juego():
         sesion.puntuacion = data.get('puntuacion', 0)
         sesion.completado = data.get('completado', False)
         sesion.estado_despues = data.get('estado_despues', sesion.estado_antes)
-        sesion.mejora_percibida = data.get('mejora_percibida', 'no_especificado')
+        
+        # Convertir mejora_percibida de string a int si es necesario (DB espera int)
+        mejora = data.get('mejora_percibida', 0)
+        if isinstance(mejora, str):
+            # Mapeo de valores string a int: peor=-1, igual=0, mejor=1
+            mejora_map = {'peor': -1, 'igual': 0, 'mejor': 1, 'no_especificado': 0}
+            sesion.mejora_percibida = mejora_map.get(mejora.lower(), 0)
+        else:
+            sesion.mejora_percibida = int(mejora) if mejora is not None else 0
+        
         sesion.notas = data.get('notas', '')
         
         db.session.commit()

@@ -3,13 +3,13 @@ from backend.database.connection import DatabaseConnection
 from datetime import datetime
 
 class GrupoMiembro:
-    """Modelo para la tabla grupo_miembro"""
+    """Modelo para la tabla grupo_miembros - Corregido para coincidir con esquema Railway"""
     
     @staticmethod
     def add_member(id_grupo, id_usuario, rol_grupo='miembro', permisos_especiales=None):
         """Agregar un miembro a un grupo"""
-        # La tabla usa ENUM('admin', 'moderador', 'miembro')
-        # Convertir 'facilitador' y 'participante' a valores válidos
+        # La tabla Railway usa ENUM('admin', 'moderador', 'miembro', 'participante', 'facilitador')
+        # Pero preferimos normalizar a los valores estándar
         if rol_grupo == 'facilitador':
             rol_grupo = 'admin'
         elif rol_grupo == 'participante':
@@ -17,7 +17,7 @@ class GrupoMiembro:
         
         query = """
             INSERT INTO grupo_miembros 
-            (id_grupo, id_usuario, rol_grupo, fecha_union, estado)
+            (id_grupo, id_usuario, rol_grupo, fecha_ingreso, estado)
             VALUES (%s, %s, %s, NOW(), 'activo')
         """
         return DatabaseConnection.execute_query(
@@ -29,7 +29,7 @@ class GrupoMiembro:
     @staticmethod
     def get_by_id(id_grupo_miembro):
         """Obtener miembro por ID"""
-        query = "SELECT * FROM grupo_miembros WHERE id_miembro = %s"
+        query = "SELECT * FROM grupo_miembros WHERE id_grupo_miembro = %s"
         results = DatabaseConnection.execute_query(query, (id_grupo_miembro,))
         return results[0] if results else None
     
@@ -44,7 +44,7 @@ class GrupoMiembro:
         """
         params = [id_grupo]
         
-        query += " ORDER BY gm.fecha_union DESC"
+        query += " ORDER BY gm.fecha_ingreso DESC"
         return DatabaseConnection.execute_query(query, tuple(params))
     
     @staticmethod
@@ -61,10 +61,10 @@ class GrupoMiembro:
                 g.max_miembros as max_participantes,
                 g.fecha_creacion,
                 g.activo,
-                gm.id_miembro,
+                gm.id_grupo_miembro,
                 gm.rol_grupo,
                 gm.estado as estado_miembro,
-                gm.fecha_union,
+                gm.fecha_ingreso,
                 u.nombre as nombre_creador,
                 u.apellido as apellido_creador,
                 (SELECT COUNT(*) FROM grupo_miembros gm2 WHERE gm2.id_grupo = g.id_grupo AND gm2.estado = 'activo') as total_miembros
@@ -79,7 +79,7 @@ class GrupoMiembro:
             query += " AND gm.estado = %s"
             params.append(estado)
         
-        query += " ORDER BY gm.fecha_union DESC"
+        query += " ORDER BY gm.fecha_ingreso DESC"
         return DatabaseConnection.execute_query(query, tuple(params))
     
     @staticmethod
@@ -95,14 +95,14 @@ class GrupoMiembro:
     @staticmethod
     def update_rol(id_grupo_miembro, nuevo_rol):
         """Actualizar rol de un miembro"""
-        query = "UPDATE grupo_miembros SET rol_grupo = %s WHERE id_miembro = %s"
+        query = "UPDATE grupo_miembros SET rol_grupo = %s WHERE id_grupo_miembro = %s"
         DatabaseConnection.execute_query(query, (nuevo_rol, id_grupo_miembro), fetch=False)
         return True
     
     @staticmethod
     def update_estado(id_grupo_miembro, nuevo_estado):
         """Actualizar estado de un miembro"""
-        query = "UPDATE grupo_miembros SET estado = %s WHERE id_miembro = %s"
+        query = "UPDATE grupo_miembros SET estado = %s WHERE id_grupo_miembro = %s"
         DatabaseConnection.execute_query(query, (nuevo_estado, id_grupo_miembro), fetch=False)
         return True
     
