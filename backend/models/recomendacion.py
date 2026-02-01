@@ -75,12 +75,16 @@ class Recomendacion:
         Returns:
             list: Recomendaciones recientes del usuario
         """
+        # Query a través de la cadena audio -> analisis -> resultado_analisis -> recomendaciones
         query = """
             SELECT r.* FROM recomendaciones r
-            WHERE r.id_usuario = %s
-              AND r.fecha_creacion >= DATE_SUB(NOW(), INTERVAL %s DAY)
+            JOIN resultado_analisis ra ON r.id_resultado = ra.id_resultado
+            JOIN analisis a ON ra.id_analisis = a.id_analisis
+            JOIN audio au ON a.id_audio = au.id_audio
+            WHERE au.id_usuario = %s
+              AND r.fecha_generacion >= DATE_SUB(NOW(), INTERVAL %s DAY)
               AND r.activo = 1
-            ORDER BY r.fecha_creacion DESC
+            ORDER BY r.fecha_generacion DESC
             LIMIT %s
         """
         return DatabaseConnection.execute_query(query, (id_usuario, days, limit))

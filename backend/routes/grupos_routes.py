@@ -36,11 +36,11 @@ def get_public_groups():
             SELECT g.*, 
                    u.nombre as nombre_facilitador,
                    u.apellido as apellido_facilitador,
-                   (SELECT COUNT(*) FROM grupo_miembros gm WHERE gm.id_grupo = g.id_grupo AND gm.activo = 1) as total_miembros,
-                   EXISTS(SELECT 1 FROM grupo_miembros gm2 WHERE gm2.id_grupo = g.id_grupo AND gm2.id_usuario = %s AND gm2.activo = 1) as es_miembro
+                   (SELECT COUNT(*) FROM grupo_miembros gm WHERE gm.id_grupo = g.id_grupo AND gm.estado = 'activo') as total_miembros,
+                   EXISTS(SELECT 1 FROM grupo_miembros gm2 WHERE gm2.id_grupo = g.id_grupo AND gm2.id_usuario = %s AND gm2.estado = 'activo') as es_miembro
             FROM grupos g
-            LEFT JOIN usuario u ON g.id_facilitador = u.id_usuario
-            WHERE g.activo = 1 AND g.privacidad = 'publico'
+            LEFT JOIN usuario u ON g.id_creador = u.id_usuario
+            WHERE g.activo = 1 AND g.es_privado = 0
             ORDER BY g.fecha_creacion DESC
         """
         
@@ -246,12 +246,13 @@ def get_all_groups():
         # Obtener los grupos del usuario
         grupos_usuario = GrupoMiembro.get_user_groups(current_user_id)
         
-        return jsonify(grupos_usuario), 200
+        # Asegurar que devolvemos una lista, incluso si es vacía
+        return jsonify(grupos_usuario or []), 200
         
     except Exception as e:
         tb = traceback.format_exc()
         print("[GRUPOS] Error en get_all_groups:\n", tb)
-        return jsonify({'error': str(e), 'trace': tb}), 500
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @bp.route('/', methods=['POST'])
@@ -303,7 +304,7 @@ def create_group():
         return jsonify({
             'message': 'Grupo creado exitosamente',
             'id_grupo': created_id,
-            'codigo_acceso': grupo.get('codigo_acceso') if grupo else None
+            'codigo_acceso': grupo.get('codigo_invitacion') if grupo else None
         }), 201
         
     except Exception as e:
@@ -356,7 +357,7 @@ def update_group(id_grupo):
         if not grupo:
             return jsonify({'error': 'Grupo no encontrado'}), 404
         
-        if grupo['id_facilitador'] != current_user_id:
+        if grupo.get('id_creador') != current_user_id:
             return jsonify({'error': 'Solo el facilitador puede actualizar el grupo'}), 403
         
         # Actualizar
@@ -384,7 +385,7 @@ def delete_group(id_grupo):
         if not grupo:
             return jsonify({'error': 'Grupo no encontrado'}), 404
         
-        if grupo['id_facilitador'] != current_user_id:
+        if grupo.get('id_creador') != current_user_id:
             return jsonify({'error': 'Solo el facilitador puede eliminar el grupo'}), 403
         
         Grupo.delete(id_grupo)
@@ -545,7 +546,7 @@ def update_member_role(id_grupo, id_usuario):
             return jsonify({'error': 'Grupo no encontrado'}), 404
         
         is_admin = RolUsuario.has_role(current_user_id, 'admin')
-        is_facilitator = grupo['id_facilitador'] == current_user_id
+        is_facilitator = grupo.get('id_creador') == current_user_id
         
         if not (is_facilitator or is_admin):
             return jsonify({'error': 'No tienes permiso para cambiar roles'}), 403
@@ -554,7 +555,7 @@ def update_member_role(id_grupo, id_usuario):
         if not miembro:
             return jsonify({'error': 'El usuario no es miembro del grupo'}), 404
         
-        GrupoMiembro.update_rol(miembro['id_grupo_miembro'], nuevo_rol)
+        GrupoMiembro.update_rol(miembro.get('id_miembro'), nuevo_rol)
         return jsonify({'message': 'Rol actualizado exitosamente', 'nuevo_rol': nuevo_rol}), 200
         
     except Exception as e:
@@ -580,7 +581,7 @@ def remove_member(id_grupo, id_usuario):
             return jsonify({'error': 'Grupo no encontrado'}), 404
         
         is_admin = RolUsuario.has_role(current_user_id, 'admin')
-        is_facilitator = grupo['id_facilitador'] == current_user_id
+        is_facilitator = grupo.get('id_creador') == current_user_id
         is_self = current_user_id == id_usuario
         
         if not (is_facilitator or is_self or is_admin):
@@ -738,7 +739,7 @@ def create_activity(id_grupo):
                 SELECT gm.id_usuario, u.nombre 
                 FROM grupo_miembros gm
                 JOIN usuario u ON gm.id_usuario = u.id_usuario
-                WHERE gm.id_grupo = %s AND gm.activo = 1
+                WHERE gm.id_grupo = %s AND gm.estado = 'activo'
             """, (id_grupo,))
             
             miembros = cursor.fetchall()
@@ -831,7 +832,7 @@ def delete_activity(id_actividad):
             return jsonify({'error': 'Grupo no encontrado'}), 404
         
         is_admin = RolUsuario.has_role(current_user_id, 'admin')
-        if grupo['id_facilitador'] != current_user_id and not is_admin:
+        if grupo.get('id_creador') != current_user_id and not is_admin:
             return jsonify({'error': 'Solo el facilitador o admin puede eliminar actividades'}), 403
         
         ActividadGrupo.delete(id_actividad)

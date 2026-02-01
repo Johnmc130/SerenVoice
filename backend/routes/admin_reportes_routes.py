@@ -318,7 +318,7 @@ def grupos_actividad():
                     COUNT(DISTINCT gm.id_usuario) as miembros_activos,
                     (SELECT COUNT(*) FROM actividades_grupo WHERE id_grupo = g.id_grupo) as total_actividades
                 FROM grupos g
-                LEFT JOIN grupo_miembro gm ON g.id_grupo = gm.id_grupo
+                LEFT JOIN grupo_miembros gm ON g.id_grupo = gm.id_grupo
                 LEFT JOIN participacion_actividad pa ON g.id_grupo = pa.id_grupo
                 GROUP BY g.id_grupo, g.nombre
                 HAVING actividades_completadas > 0

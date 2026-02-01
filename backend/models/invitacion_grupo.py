@@ -128,7 +128,7 @@ class InvitacionGrupo:
             
             # Agregar usuario al grupo
             query_insert = """
-                INSERT INTO grupo_miembro (id_grupo, id_usuario, rol_grupo, activo)
+                INSERT INTO grupo_miembros (id_grupo, id_usuario, rol_grupo, activo)
                 VALUES (%s, %s, 'miembro', 1)
                 ON DUPLICATE KEY UPDATE activo = 1
             """

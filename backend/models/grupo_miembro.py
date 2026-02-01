@@ -6,12 +6,19 @@ class GrupoMiembro:
     """Modelo para la tabla grupo_miembro"""
     
     @staticmethod
-    def add_member(id_grupo, id_usuario, rol_grupo='participante', permisos_especiales=None):
+    def add_member(id_grupo, id_usuario, rol_grupo='miembro', permisos_especiales=None):
         """Agregar un miembro a un grupo"""
+        # La tabla usa ENUM('admin', 'moderador', 'miembro')
+        # Convertir 'facilitador' y 'participante' a valores válidos
+        if rol_grupo == 'facilitador':
+            rol_grupo = 'admin'
+        elif rol_grupo == 'participante':
+            rol_grupo = 'miembro'
+        
         query = """
-            INSERT INTO grupo_miembro 
-            (id_grupo, id_usuario, rol_grupo, fecha_union, activo)
-            VALUES (%s, %s, %s, NOW(), 1)
+            INSERT INTO grupo_miembros 
+            (id_grupo, id_usuario, rol_grupo, fecha_union, estado)
+            VALUES (%s, %s, %s, NOW(), 'activo')
         """
         return DatabaseConnection.execute_query(
             query,
@@ -22,7 +29,7 @@ class GrupoMiembro:
     @staticmethod
     def get_by_id(id_grupo_miembro):
         """Obtener miembro por ID"""
-        query = "SELECT * FROM grupo_miembro WHERE id = %s"
+        query = "SELECT * FROM grupo_miembros WHERE id_miembro = %s"
         results = DatabaseConnection.execute_query(query, (id_grupo_miembro,))
         return results[0] if results else None
     
@@ -31,9 +38,9 @@ class GrupoMiembro:
         """Obtener todos los miembros de un grupo"""
         query = """
             SELECT gm.*, u.nombre, u.apellido, u.correo, u.foto_perfil
-            FROM grupo_miembro gm
+            FROM grupo_miembros gm
             JOIN usuario u ON gm.id_usuario = u.id_usuario
-            WHERE gm.id_grupo = %s AND gm.activo = 1
+            WHERE gm.id_grupo = %s AND gm.estado = 'activo'
         """
         params = [id_grupo]
         
@@ -42,26 +49,45 @@ class GrupoMiembro:
     
     @staticmethod
     def get_user_groups(id_usuario, estado='activo'):
-        """Obtener grupos de un usuario usando vista optimizada"""
+        """Obtener grupos de un usuario con información completa"""
         query = """
-            SELECT * FROM vista_participacion_grupos 
-            WHERE id_usuario = %s
+            SELECT 
+                g.id_grupo,
+                g.nombre_grupo,
+                g.descripcion,
+                g.id_creador,
+                g.codigo_invitacion as codigo_acceso,
+                g.es_privado,
+                g.max_miembros as max_participantes,
+                g.fecha_creacion,
+                g.activo,
+                gm.id_miembro,
+                gm.rol_grupo,
+                gm.estado as estado_miembro,
+                gm.fecha_union,
+                u.nombre as nombre_creador,
+                u.apellido as apellido_creador,
+                (SELECT COUNT(*) FROM grupo_miembros gm2 WHERE gm2.id_grupo = g.id_grupo AND gm2.estado = 'activo') as total_miembros
+            FROM grupo_miembros gm
+            JOIN grupos g ON gm.id_grupo = g.id_grupo
+            LEFT JOIN usuario u ON g.id_creador = u.id_usuario
+            WHERE gm.id_usuario = %s AND g.activo = 1
         """
         params = [id_usuario]
         
         if estado:
-            query += " AND estado_miembro = %s"
+            query += " AND gm.estado = %s"
             params.append(estado)
         
-        query += " ORDER BY fecha_union DESC"
+        query += " ORDER BY gm.fecha_union DESC"
         return DatabaseConnection.execute_query(query, tuple(params))
     
     @staticmethod
     def is_member(id_grupo, id_usuario):
         """Verificar si un usuario es miembro del grupo"""
         query = """
-            SELECT * FROM grupo_miembro 
-            WHERE id_grupo = %s AND id_usuario = %s AND activo = 1
+            SELECT * FROM grupo_miembros 
+            WHERE id_grupo = %s AND id_usuario = %s AND estado = 'activo'
         """
         results = DatabaseConnection.execute_query(query, (id_grupo, id_usuario))
         return results[0] if results else None
@@ -69,23 +95,23 @@ class GrupoMiembro:
     @staticmethod
     def update_rol(id_grupo_miembro, nuevo_rol):
         """Actualizar rol de un miembro"""
-        query = "UPDATE grupo_miembro SET rol_grupo = %s WHERE id = %s"
+        query = "UPDATE grupo_miembros SET rol_grupo = %s WHERE id_miembro = %s"
         DatabaseConnection.execute_query(query, (nuevo_rol, id_grupo_miembro), fetch=False)
         return True
     
     @staticmethod
     def update_estado(id_grupo_miembro, nuevo_estado):
         """Actualizar estado de un miembro"""
-        query = "UPDATE grupo_miembro SET activo = %s WHERE id = %s"
-        DatabaseConnection.execute_query(query, (1 if nuevo_estado == 'activo' else 0, id_grupo_miembro), fetch=False)
+        query = "UPDATE grupo_miembros SET estado = %s WHERE id_miembro = %s"
+        DatabaseConnection.execute_query(query, (nuevo_estado, id_grupo_miembro), fetch=False)
         return True
     
     @staticmethod
     def remove_member(id_grupo, id_usuario):
         """Remover miembro de un grupo (soft delete)"""
         query = """
-            UPDATE grupo_miembro 
-            SET activo = 0
+            UPDATE grupo_miembros 
+            SET estado = 'inactivo', fecha_salida = NOW()
             WHERE id_grupo = %s AND id_usuario = %s
         """
         DatabaseConnection.execute_query(query, (id_grupo, id_usuario), fetch=False)
@@ -106,8 +132,8 @@ class GrupoMiembro:
         """Contar miembros activos en un grupo"""
         query = """
             SELECT COUNT(*) as total 
-            FROM grupo_miembro 
-            WHERE id_grupo = %s AND activo = 1
+            FROM grupo_miembros 
+            WHERE id_grupo = %s AND estado = 'activo'
         """
         result = DatabaseConnection.execute_query(query, (id_grupo,))
         return result[0]['total'] if result else 0

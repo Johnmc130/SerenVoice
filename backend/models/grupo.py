@@ -14,31 +14,34 @@ class Grupo:
         # Generar código de acceso único
         codigo_acceso = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
         
-        # Nota: fecha_inicio y fecha_fin no existen en la tabla, se ignoran
+        # Convertir privacidad a es_privado (1 = privado, 0 = publico)
+        es_privado = 1 if privacidad == 'privado' else 0
+        
+        # La tabla usa id_creador, codigo_invitacion, es_privado, max_miembros
         query = """
             INSERT INTO grupos 
-            (nombre_grupo, descripcion, codigo_acceso, id_facilitador, tipo_grupo, 
-             privacidad, max_participantes)
+            (nombre_grupo, descripcion, codigo_invitacion, id_creador, tipo_grupo, 
+             es_privado, max_miembros)
             VALUES (%s, %s, %s, %s, %s, %s, %s)
         """
         return DatabaseConnection.execute_query(
             query, 
             (nombre_grupo, descripcion, codigo_acceso, id_facilitador, tipo_grupo, 
-             privacidad, max_participantes),
+             es_privado, max_participantes),
             fetch=False
         )
     
     @staticmethod
     def get_by_id(id_grupo):
         """Obtener grupo por ID"""
-        query = "SELECT * FROM grupo WHERE id_grupo = %s AND activo = 1"
+        query = "SELECT * FROM grupos WHERE id_grupo = %s AND activo = 1"
         results = DatabaseConnection.execute_query(query, (id_grupo,))
         return results[0] if results else None
     
     @staticmethod
     def get_by_codigo(codigo_acceso):
         """Obtener grupo por código de acceso"""
-        query = "SELECT * FROM grupo WHERE codigo_acceso = %s AND activo = 1"
+        query = "SELECT * FROM grupos WHERE codigo_invitacion = %s AND activo = 1"
         results = DatabaseConnection.execute_query(query, (codigo_acceso,))
         return results[0] if results else None
     
@@ -55,7 +58,7 @@ class Grupo:
     @staticmethod
     def get_all(tipo_grupo=None, privacidad=None):
         """Obtener todos los grupos con filtros opcionales"""
-        query = "SELECT * FROM grupo WHERE activo = 1"
+        query = "SELECT * FROM grupos WHERE activo = 1"
         params = []
         
         if tipo_grupo:
@@ -86,15 +89,25 @@ class Grupo:
     @staticmethod
     def update(id_grupo, **kwargs):
         """Actualizar grupo"""
-        allowed_fields = ['nombre_grupo', 'descripcion', 'tipo_grupo', 'privacidad', 
-                         'max_participantes', 'fecha_inicio', 'fecha_fin']
+        # Mapear campos del request a columnas de la base de datos
+        field_mapping = {
+            'nombre_grupo': 'nombre_grupo',
+            'descripcion': 'descripcion',
+            'tipo_grupo': 'tipo_grupo',
+            'privacidad': 'es_privado',  # Convertir a booleano
+            'max_participantes': 'max_miembros',
+        }
         
         updates = []
         values = []
         
         for field, value in kwargs.items():
-            if field in allowed_fields:
-                updates.append(f"{field} = %s")
+            if field in field_mapping:
+                db_field = field_mapping[field]
+                # Convertir privacidad a es_privado (1 = privado, 0 = publico)
+                if field == 'privacidad':
+                    value = 1 if value == 'privado' else 0
+                updates.append(f"{db_field} = %s")
                 values.append(value)
         
         if not updates:
@@ -116,15 +129,15 @@ class Grupo:
     def verify_max_participantes(id_grupo):
         """Verificar si el grupo ha alcanzado su límite de participantes"""
         grupo = Grupo.get_by_id(id_grupo)
-        if not grupo or not grupo.get('max_participantes'):
+        if not grupo or not grupo.get('max_miembros'):
             return True  # Sin límite
         
         query = """
             SELECT COUNT(*) as total 
             FROM grupo_miembros 
-            WHERE id_grupo = %s AND activo = 1 AND estado = 'activo'
+            WHERE id_grupo = %s AND estado = 'activo'
         """
         result = DatabaseConnection.execute_query(query, (id_grupo,))
         total = result[0]['total'] if result else 0
         
-        return total < grupo['max_participantes']
+        return total < grupo['max_miembros']
