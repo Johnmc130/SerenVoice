@@ -9,12 +9,12 @@ class Recomendacion:
     def create(id_resultado, tipo, contenido):
         """Crear recomendación"""
         query = """
-            INSERT INTO recomendaciones (id_resultado, tipo_recomendacion, contenido, fecha_generacion)
-            VALUES (%s, %s, %s, %s)
+            INSERT INTO recomendaciones (id_resultado, tipo_recomendacion, descripcion, contenido, fecha_generacion)
+            VALUES (%s, %s, %s, %s, %s)
         """
         return DatabaseConnection.execute_query(
             query,
-            (id_resultado, tipo, contenido, date.today()),
+            (id_resultado, tipo, contenido, contenido, date.today()),
             fetch=False
         )
     
@@ -22,11 +22,11 @@ class Recomendacion:
     def create_multiple(recomendaciones):
         """Crear múltiples recomendaciones"""
         query = """
-            INSERT INTO recomendaciones (id_resultado, tipo_recomendacion, contenido, fecha_generacion)
-            VALUES (%s, %s, %s, %s)
+            INSERT INTO recomendaciones (id_resultado, tipo_recomendacion, descripcion, contenido, fecha_generacion)
+            VALUES (%s, %s, %s, %s, %s)
         """
         params_list = [
-            (r['id_resultado'], r['tipo_recomendacion'], r['contenido'], date.today())
+            (r['id_resultado'], r['tipo_recomendacion'], r['contenido'], r['contenido'], date.today())
             for r in recomendaciones
         ]
         # Usar el pool de conexiones para ejecutar ejecutemany de forma segura
