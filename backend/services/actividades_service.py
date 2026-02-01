@@ -145,7 +145,7 @@ class ActividadesService:
                     pa.estado,
                     pa.completada,
                     pa.fecha_registro,
-                    pa.fecha_conexion,
+                    pa.fecha_union,
                     pa.fecha_completada,
                     pa.notas_participante,
                     pa.estado_emocional_antes,
@@ -200,7 +200,7 @@ class ActividadesService:
             
             cursor.execute("""
                 UPDATE participacion_actividad
-                SET estado = 'conectado', fecha_conexion = NOW()
+                SET estado = 'conectado', fecha_union = NOW()
                 WHERE id_actividad = %s AND id_usuario = %s
             """, (id_actividad, id_usuario))
             

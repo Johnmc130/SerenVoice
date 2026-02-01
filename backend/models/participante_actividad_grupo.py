@@ -41,7 +41,7 @@ class ParticipanteActividadGrupo:
 
             query = """
             SELECT p.id, p.actividad_id, p.usuario_id, p.estado, 
-                   p.fecha_conexion, p.fecha_completacion, u.nombre, u.email
+                   p.fecha_union, p.fecha_completacion, u.nombre, u.email
             FROM participantes_actividad_grupo p
             JOIN usuario u ON p.usuario_id = u.id
             WHERE p.actividad_id = %s
@@ -70,7 +70,7 @@ class ParticipanteActividadGrupo:
             if nuevo_estado == 'conectado':
                 query = """
                 UPDATE participantes_actividad_grupo 
-                SET estado = 'conectado', fecha_conexion = NOW()
+                SET estado = 'conectado', fecha_union = NOW()
                 WHERE actividad_id = %s AND usuario_id = %s
                 """
             elif nuevo_estado == 'completado':
@@ -114,7 +114,7 @@ class ParticipanteActividadGrupo:
             cursor = conn.cursor(dictionary=True)
 
             query = """
-            SELECT estado, fecha_conexion, fecha_completacion
+            SELECT estado, fecha_union, fecha_completacion
             FROM participantes_actividad_grupo
             WHERE actividad_id = %s AND usuario_id = %s
             """

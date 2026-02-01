@@ -257,7 +257,7 @@ def marcar_conectado(actividad_id):
         # Actualizar a conectado
         cursor.execute("""
             UPDATE participacion_actividad
-            SET conectado = 1, fecha_conexion = NOW()
+            SET conectado = 1, fecha_union = NOW()
             WHERE id_actividad = %s AND id_usuario = %s
         """, (actividad_id, usuario_id))
         
@@ -797,7 +797,7 @@ def obtener_participantes(id_actividad):
                 END as estado,
                 pa.completada,
                 pa.conectado,
-                pa.fecha_conexion,
+                pa.fecha_union,
                 pa.fecha_completada,
                 pa.notas_participante,
                 pa.estado_emocional_antes,
