@@ -581,7 +581,7 @@ def remove_member(id_grupo, id_usuario):
             return jsonify({'error': 'Grupo no encontrado'}), 404
         
         is_admin = RolUsuario.has_role(current_user_id, 'admin')
-        is_facilitator = grupo.get('id_creador') == current_user_id
+        is_facilitator = grupo.get('id_facilitador') == current_user_id
         is_self = current_user_id == id_usuario
         
         if not (is_facilitator or is_self or is_admin):
@@ -832,7 +832,7 @@ def delete_activity(id_actividad):
             return jsonify({'error': 'Grupo no encontrado'}), 404
         
         is_admin = RolUsuario.has_role(current_user_id, 'admin')
-        if grupo.get('id_creador') != current_user_id and not is_admin:
+        if grupo.get('id_facilitador') != current_user_id and not is_admin:
             return jsonify({'error': 'Solo el facilitador o admin puede eliminar actividades'}), 403
         
         ActividadGrupo.delete(id_actividad)
