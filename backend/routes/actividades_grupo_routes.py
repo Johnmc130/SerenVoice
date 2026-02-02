@@ -368,6 +368,7 @@ def analizar_voz(actividad_id):
                 nivel_ansiedad += emo['value']
         
         # Guardar o actualizar análisis en la base de datos (UPSERT)
+        # IMPORTANTE: NO incluir id_sesion - esa columna no existe en analisis_voz_participante
         cursor.execute("""
             INSERT INTO analisis_voz_participante
             (id_actividad, id_usuario, emocion_predominante, nivel_estres, nivel_ansiedad,

@@ -1,6 +1,9 @@
 # Dockerfile optimizado para Google Cloud Run
 FROM python:3.11-slim
 
+# Invalidar caché en cada build
+ARG CACHE_BUST=2026-02-02-00-45
+
 # Instalar ffmpeg para soportar formatos de audio
 RUN apt-get update && \
     apt-get install -y --no-install-recommends ffmpeg && \

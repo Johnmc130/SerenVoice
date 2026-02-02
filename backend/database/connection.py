@@ -27,10 +27,13 @@ class DatabaseConnection:
             print("[DB] Pool ya inicializado, reutilizando...")
             return
         
+        # Pool size configurable, default bajo para Railway (151 max)
+        pool_size = int(os.getenv('DB_POOL_SIZE', 5))
+        
         try:
             DatabaseConnection.pool = pooling.MySQLConnectionPool(
                 pool_name="serenvoice_pool",
-                pool_size=32,  # Máximo permitido por mysql-connector-python
+                pool_size=pool_size,  # Configurable via env
                 pool_reset_session=True,  # Resetear sesión al devolver al pool
                 host=os.getenv('DB_HOST', 'localhost'),
                 user=os.getenv('DB_USER', 'root'),
@@ -45,7 +48,7 @@ class DatabaseConnection:
                 get_warnings=False,  # Reducir overhead
             )
             DatabaseConnection._initialized = True
-            print("[DB] Pool de conexiones inicializado correctamente (UTF-8, pool_size=32)")
+            print(f"[DB] Pool de conexiones inicializado correctamente (UTF-8, pool_size={pool_size})")
         except Error as e:
             print(f"[DB] Error al crear pool: {e}")
             raise
