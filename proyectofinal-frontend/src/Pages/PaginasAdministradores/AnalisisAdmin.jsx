@@ -6,17 +6,24 @@ import {
   FaChartLine, 
   FaCalendarAlt, 
   FaDownload, 
-  FaFilter,
   FaUsers,
-  FaExclamationTriangle,
-  FaSmile,
-  FaMeh,
-  FaFrown,
-  FaAngry
+  FaSyncAlt
 } from "react-icons/fa";
 import PageCard from "../../components/Shared/PageCard";
 import "../../global.css";
 import "../../styles/StylesAdmin/AdminPages.css";
+
+// Constantes para colores y emojis de emociones
+const EMOTION_CONFIG = {
+  felicidad: { emoji: "😊", color: "#10b981", gradient: "linear-gradient(135deg, #10b981, #34d399)" },
+  neutral: { emoji: "😐", color: "#6b7280", gradient: "linear-gradient(135deg, #6b7280, #9ca3af)" },
+  tristeza: { emoji: "😢", color: "#6366f1", gradient: "linear-gradient(135deg, #6366f1, #818cf8)" },
+  ansiedad: { emoji: "😰", color: "#ef4444", gradient: "linear-gradient(135deg, #ef4444, #f87171)" },
+  estres: { emoji: "😓", color: "#f97316", gradient: "linear-gradient(135deg, #f97316, #fb923c)" },
+  miedo: { emoji: "😨", color: "#8b5cf6", gradient: "linear-gradient(135deg, #8b5cf6, #a78bfa)" },
+  enojo: { emoji: "😠", color: "#dc2626", gradient: "linear-gradient(135deg, #dc2626, #f87171)" },
+  sorpresa: { emoji: "😲", color: "#f59e0b", gradient: "linear-gradient(135deg, #f59e0b, #fbbf24)" }
+};
 
 const AnalisisAdmin = () => {
   const [loading, setLoading] = useState(true);
@@ -78,6 +85,7 @@ const AnalisisAdmin = () => {
     } catch (error) {
       console.error("Error cargando datos de análisis:", error);
       setMsg("Error al cargar datos de análisis");
+      setTimeout(() => setMsg(""), 3000);
     } finally {
       setLoading(false);
     }
@@ -87,32 +95,44 @@ const AnalisisAdmin = () => {
     cargarDatos();
   }, [cargarDatos]);
 
-  const getEmocionIcon = (emocion) => {
-    const icons = {
-      felicidad: { icon: <FaSmile />, color: "#4caf50" },
-      neutral: { icon: <FaMeh />, color: "#9e9e9e" },
-      tristeza: { icon: <FaFrown />, color: "#2196f3" },
-      ansiedad: { icon: <FaExclamationTriangle />, color: "#ff9800" },
-      estres: { icon: <FaAngry />, color: "#ff6b6b" },
-      miedo: { icon: <FaFrown />, color: "#9c27b0" },
-      enojo: { icon: <FaAngry />, color: "#e91e63" },
-      sorpresa: { icon: <FaSmile />, color: "#00bcd4" }
-    };
-    return icons[emocion?.toLowerCase()] || { icon: <FaMeh />, color: "#9e9e9e" };
+  const getEmotionConfig = (emocion) => {
+    return EMOTION_CONFIG[emocion?.toLowerCase()] || EMOTION_CONFIG.neutral;
+  };
+
+  // Normaliza el valor del porcentaje (el backend puede enviar 0-100 o 0-1)
+  const normalizePercentage = (value) => {
+    if (value === null || value === undefined) return 0;
+    // Si el valor es mayor a 1, asumimos que ya está en porcentaje
+    if (value > 1) return Math.min(value, 100);
+    // Si está entre 0 y 1, lo convertimos a porcentaje
+    return value * 100;
   };
 
   const getNivelColor = (valor) => {
-    if (valor >= 0.7) return "#ff6b6b";
-    if (valor >= 0.5) return "#ff9800";
-    if (valor >= 0.3) return "#ffc107";
-    return "#4caf50";
+    const normalized = normalizePercentage(valor);
+    if (normalized >= 70) return "#ef4444";
+    if (normalized >= 50) return "#f97316";
+    if (normalized >= 30) return "#fbbf24";
+    return "#10b981";
   };
 
   const getNivelTexto = (valor) => {
-    if (valor >= 0.7) return "Alto";
-    if (valor >= 0.5) return "Moderado";
-    if (valor >= 0.3) return "Bajo";
+    const normalized = normalizePercentage(valor);
+    if (normalized >= 70) return "Alto";
+    if (normalized >= 50) return "Moderado";
+    if (normalized >= 30) return "Bajo";
     return "Muy bajo";
+  };
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return "N/A";
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return "N/A";
+      return date.toLocaleDateString('es', { weekday: 'short', day: 'numeric', month: 'short' });
+    } catch {
+      return "N/A";
+    }
   };
 
   const exportarDatos = () => {
@@ -130,43 +150,90 @@ const AnalisisAdmin = () => {
     a.href = url;
     a.download = `analisis_emocional_${new Date().toISOString().split('T')[0]}.json`;
     a.click();
-    setMsg("Datos exportados correctamente");
+    setMsg("✅ Datos exportados correctamente");
     setTimeout(() => setMsg(""), 3000);
   };
+
+  // Ordenar emociones por porcentaje
+  const sortedEmociones = [...distribucionEmociones].sort((a, b) => {
+    const porcentajeA = a.porcentaje || a.count || 0;
+    const porcentajeB = b.porcentaje || b.count || 0;
+    return porcentajeB - porcentajeA;
+  });
+
+  // Calcular total para porcentajes
+  const totalEmociones = sortedEmociones.reduce((sum, item) => sum + (item.cantidad || item.count || 0), 0);
 
   return (
     <div className="admin-analisis-page">
       <div className="admin-page-content">
-        {/* Header y Filtros en PageCard */}
+        {/* Header */}
         <PageCard size="xl">
-          <div style={{ textAlign: "center", marginBottom: "1.5rem" }}>
-            <h2 style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.5rem", margin: 0 }}>
-              <FaBrain style={{ color: "#9c27b0" }} /> Dashboard de Análisis Emocional
-            </h2>
-            <p style={{ color: "var(--color-text-secondary)", margin: "0.5rem 0 0 0" }}>Visualiza métricas y tendencias de análisis emocional</p>
-          </div>
-          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'nowrap', alignItems: 'flex-end', overflowX: 'auto' }}>
-            <div style={{ flex: 1, minWidth: '160px', maxWidth: '300px' }}>
-              <div className="input-labels">
-                <label><FaCalendarAlt /> Periodo</label>
-              </div>
-              <div className="input-group no-icon">
-                <select value={periodo} onChange={(e) => setPeriodo(e.target.value)}>
-                  {periodos.map(p => (
-                    <option key={p.value} value={p.value}>{p.label}</option>
-                  ))}
-                </select>
-              </div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "1rem" }}>
+            <div>
+              <h2 style={{ display: "flex", alignItems: "center", gap: "0.75rem", margin: 0 }}>
+                <FaBrain style={{ color: "#9c27b0" }} /> 
+                Dashboard de Análisis Emocional
+              </h2>
+              <p style={{ color: "var(--color-text-secondary)", margin: "0.5rem 0 0 0" }}>
+                Visualiza métricas y tendencias de análisis emocional
+              </p>
             </div>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
-            <button onClick={exportarDatos} className="admin-btn admin-btn-secondary" style={{ whiteSpace: 'nowrap' }}>
-              <FaDownload /> <span className="admin-hidden-mobile">Exportar</span>
-            </button>
+            
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+              {/* Selector de periodo */}
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '0.5rem', 
+                background: 'var(--color-panel)', 
+                borderRadius: '12px', 
+                padding: '0.25rem' 
+              }}>
+                <FaCalendarAlt style={{ color: 'var(--color-text-secondary)', marginLeft: '0.5rem' }} />
+                {periodos.map((p) => (
+                  <button
+                    key={p.value}
+                    onClick={() => setPeriodo(p.value)}
+                    disabled={loading}
+                    style={{
+                      padding: '0.5rem 0.875rem',
+                      fontSize: '0.85rem',
+                      fontWeight: 500,
+                      borderRadius: '8px',
+                      border: 'none',
+                      cursor: loading ? 'not-allowed' : 'pointer',
+                      transition: 'all 0.2s',
+                      background: periodo === p.value ? 'var(--color-card)' : 'transparent',
+                      color: periodo === p.value ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                      boxShadow: periodo === p.value ? '0 2px 8px rgba(0,0,0,0.1)' : 'none'
+                    }}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+              
+              <button 
+                onClick={cargarDatos} 
+                disabled={loading}
+                className="admin-btn admin-btn-secondary"
+              >
+                <FaSyncAlt className={loading ? 'spin' : ''} />
+              </button>
+              
+              <button onClick={exportarDatos} className="admin-btn admin-btn-secondary">
+                <FaDownload /> Exportar
+              </button>
+            </div>
           </div>
         </PageCard>
 
-        {msg && <div className="admin-message admin-message-success">{msg}</div>}
+        {msg && (
+          <div className={`admin-message ${msg.includes('Error') ? 'admin-message-error' : 'admin-message-success'}`}>
+            {msg}
+          </div>
+        )}
 
         {loading ? (
           <div className="admin-loading">
@@ -176,219 +243,517 @@ const AnalisisAdmin = () => {
         ) : (
           <>
             {/* Estadísticas principales */}
-            <div className="admin-stats-grid">
-              <div className="admin-stat-card">
-                <div className="admin-stat-icon">📊</div>
-                <div className="admin-stat-value">{stats.total_analisis.toLocaleString()}</div>
-                <div className="admin-stat-label">Total Análisis</div>
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+              gap: '1rem', 
+              width: '100%', 
+              maxWidth: '1200px' 
+            }}>
+              {/* Total Análisis */}
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(99, 102, 241, 0.05))',
+                borderRadius: '16px',
+                padding: '1.5rem',
+                borderLeft: '4px solid #6366f1'
+              }}>
+                <div style={{ fontSize: '2rem', marginBottom: '0.25rem' }}>📊</div>
+                <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--color-text)' }}>
+                  {stats.total_analisis.toLocaleString()}
+                </div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>Total Análisis</div>
               </div>
-              <div className="admin-stat-card">
-                <div className="admin-stat-icon">📈</div>
-                <div className="admin-stat-value">{stats.analisis_hoy}</div>
-                <div className="admin-stat-label">Análisis Hoy</div>
+
+              {/* Análisis Hoy */}
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.05))',
+                borderRadius: '16px',
+                padding: '1.5rem',
+                borderLeft: '4px solid #10b981'
+              }}>
+                <div style={{ fontSize: '2rem', marginBottom: '0.25rem' }}>📈</div>
+                <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--color-text)' }}>
+                  {stats.analisis_hoy}
+                </div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>Análisis Hoy</div>
               </div>
-              <div className="admin-stat-card">
-                <div className="admin-stat-icon">👥</div>
-                <div className="admin-stat-value">{stats.usuarios_activos}</div>
-                <div className="admin-stat-label">Usuarios Activos</div>
+
+              {/* Usuarios Activos */}
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.05))',
+                borderRadius: '16px',
+                padding: '1.5rem',
+                borderLeft: '4px solid #3b82f6'
+              }}>
+                <div style={{ fontSize: '2rem', marginBottom: '0.25rem' }}>👥</div>
+                <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--color-text)' }}>
+                  {stats.usuarios_activos}
+                </div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>Usuarios Activos</div>
               </div>
-              <div className="admin-stat-card" style={{ borderLeft: `4px solid ${getNivelColor(stats.promedio_ansiedad)}` }}>
-                <div className="admin-stat-icon">😰</div>
-                <div className="admin-stat-value">{(stats.promedio_ansiedad * 100).toFixed(1)}%</div>
-                <div className="admin-stat-label">Ansiedad Promedio</div>
-                <div className="admin-stat-trend" style={{ color: getNivelColor(stats.promedio_ansiedad) }}>
+
+              {/* Ansiedad Promedio */}
+              <div style={{
+                background: `linear-gradient(135deg, ${getNivelColor(stats.promedio_ansiedad)}15, ${getNivelColor(stats.promedio_ansiedad)}05)`,
+                borderRadius: '16px',
+                padding: '1.5rem',
+                borderLeft: `4px solid ${getNivelColor(stats.promedio_ansiedad)}`
+              }}>
+                <div style={{ fontSize: '2rem', marginBottom: '0.25rem' }}>😰</div>
+                <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--color-text)' }}>
+                  {normalizePercentage(stats.promedio_ansiedad).toFixed(1)}%
+                </div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>Ansiedad Promedio</div>
+                <div style={{ 
+                  fontSize: '0.75rem', 
+                  fontWeight: 600, 
+                  color: getNivelColor(stats.promedio_ansiedad),
+                  marginTop: '0.25rem'
+                }}>
                   {getNivelTexto(stats.promedio_ansiedad)}
                 </div>
               </div>
-              <div className="admin-stat-card" style={{ borderLeft: `4px solid ${getNivelColor(stats.promedio_estres)}` }}>
-                <div className="admin-stat-icon">😤</div>
-                <div className="admin-stat-value">{(stats.promedio_estres * 100).toFixed(1)}%</div>
-                <div className="admin-stat-label">Estrés Promedio</div>
-                <div className="admin-stat-trend" style={{ color: getNivelColor(stats.promedio_estres) }}>
+
+              {/* Estrés Promedio */}
+              <div style={{
+                background: `linear-gradient(135deg, ${getNivelColor(stats.promedio_estres)}15, ${getNivelColor(stats.promedio_estres)}05)`,
+                borderRadius: '16px',
+                padding: '1.5rem',
+                borderLeft: `4px solid ${getNivelColor(stats.promedio_estres)}`
+              }}>
+                <div style={{ fontSize: '2rem', marginBottom: '0.25rem' }}>😤</div>
+                <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--color-text)' }}>
+                  {normalizePercentage(stats.promedio_estres).toFixed(1)}%
+                </div>
+                <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>Estrés Promedio</div>
+                <div style={{ 
+                  fontSize: '0.75rem', 
+                  fontWeight: 600, 
+                  color: getNivelColor(stats.promedio_estres),
+                  marginTop: '0.25rem'
+                }}>
                   {getNivelTexto(stats.promedio_estres)}
                 </div>
               </div>
             </div>
 
-            {/* Distribución de Emociones */}
-            <div className="admin-card" style={{ marginBottom: "1.5rem" }}>
-              <div className="admin-card-header">
-                <h3><FaChartLine /> Distribución de Emociones Detectadas</h3>
+            {/* Distribución de Emociones - Diseño moderno con cards */}
+            <PageCard size="xl">
+              <div style={{ marginBottom: '1rem' }}>
+                <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+                  <FaChartLine style={{ color: '#6366f1' }} /> Distribución de Emociones Detectadas
+                </h3>
+                <p style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', margin: '0.25rem 0 0 0' }}>
+                  Proporción de cada emoción en los análisis realizados
+                </p>
               </div>
-              <div className="admin-card-body">
-                {distribucionEmociones.length > 0 ? (
-                  <div className="admin-emotion-grid">
-                    {distribucionEmociones.map((item, index) => {
-                      const { icon, color } = getEmocionIcon(item.emocion || item.nombre);
-                      const porcentaje = item.porcentaje || item.count || 0;
-                      return (
-                        <div key={index} className="admin-emotion-item">
-                          <div className="admin-emotion-header">
-                            <span style={{ color, fontSize: "1.5rem" }}>{icon}</span>
-                            <span style={{ textTransform: "capitalize", fontWeight: 500 }}>
+              
+              {sortedEmociones.length > 0 ? (
+                <div style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', 
+                  gap: '1rem',
+                  marginTop: '1rem'
+                }}>
+                  {sortedEmociones.map((item, index) => {
+                    const emocionKey = (item.emocion || item.nombre || '').toLowerCase();
+                    const config = getEmotionConfig(emocionKey);
+                    const cantidad = item.cantidad || item.count || 0;
+                    const porcentaje = totalEmociones > 0 
+                      ? ((cantidad / totalEmociones) * 100).toFixed(1)
+                      : (item.porcentaje || 0);
+                    
+                    return (
+                      <div 
+                        key={index} 
+                        style={{
+                          background: `linear-gradient(135deg, ${config.color}15, ${config.color}05)`,
+                          borderRadius: '16px',
+                          padding: '1.25rem',
+                          borderLeft: `4px solid ${config.color}`,
+                          transition: 'transform 0.2s, box-shadow 0.2s',
+                          cursor: 'default'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                          e.currentTarget.style.boxShadow = `0 4px 20px ${config.color}30`;
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.transform = 'translateY(0)';
+                          e.currentTarget.style.boxShadow = 'none';
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                          <span style={{ fontSize: '1.75rem' }}>{config.emoji}</span>
+                          <div>
+                            <div style={{ 
+                              textTransform: 'capitalize', 
+                              fontWeight: 600, 
+                              color: 'var(--color-text)',
+                              fontSize: '0.95rem'
+                            }}>
                               {item.emocion || item.nombre}
-                            </span>
+                            </div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
+                              {cantidad.toLocaleString()} análisis
+                            </div>
                           </div>
-                          <div className="admin-progress-bar">
-                            <div 
-                              className="admin-progress-fill"
-                              style={{ 
-                                width: `${Math.min(porcentaje, 100)}%`,
-                                backgroundColor: color
-                              }}
-                            />
+                        </div>
+                        
+                        {/* Barra de progreso */}
+                        <div style={{
+                          height: '8px',
+                          background: 'var(--color-bg)',
+                          borderRadius: '4px',
+                          overflow: 'hidden',
+                          marginBottom: '0.5rem'
+                        }}>
+                          <div style={{
+                            height: '100%',
+                            width: `${Math.min(parseFloat(porcentaje), 100)}%`,
+                            background: config.gradient,
+                            borderRadius: '4px',
+                            transition: 'width 0.5s ease'
+                          }} />
+                        </div>
+                        
+                        <div style={{ 
+                          fontSize: '1.25rem', 
+                          fontWeight: 700, 
+                          color: config.color,
+                          textAlign: 'right'
+                        }}>
+                          {porcentaje}%
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div style={{ 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  alignItems: 'center', 
+                  justifyContent: 'center', 
+                  padding: '3rem',
+                  color: 'var(--color-text-secondary)'
+                }}>
+                  <span style={{ fontSize: '3rem', marginBottom: '1rem', opacity: 0.5 }}>📊</span>
+                  <p>No hay datos de emociones para el periodo seleccionado</p>
+                </div>
+              )}
+            </PageCard>
+
+            {/* Grid de Tendencias y Usuarios */}
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', 
+              gap: '1.5rem', 
+              width: '100%', 
+              maxWidth: '1200px' 
+            }}>
+              {/* Tendencias Recientes */}
+              <PageCard size="full">
+                <div style={{ marginBottom: '1rem' }}>
+                  <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+                    <FaChartLine style={{ color: '#10b981' }} /> Tendencias Recientes
+                  </h3>
+                </div>
+                
+                {tendencias.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                    {tendencias.slice(0, 7).map((item, index) => {
+                      const anxietyVal = normalizePercentage(item.ansiedad || item.promedio_ansiedad || 0);
+                      const stressVal = normalizePercentage(item.estres || item.promedio_estres || 0);
+                      
+                      return (
+                        <div 
+                          key={index} 
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: '100px 1fr auto',
+                            alignItems: 'center',
+                            gap: '1rem',
+                            padding: '0.75rem',
+                            background: 'var(--color-bg)',
+                            borderRadius: '12px'
+                          }}
+                        >
+                          {/* Fecha */}
+                          <div style={{ 
+                            fontSize: '0.85rem', 
+                            fontWeight: 600, 
+                            color: 'var(--color-text)',
+                            whiteSpace: 'nowrap'
+                          }}>
+                            {formatDate(item.fecha)}
                           </div>
-                          <div className="admin-emotion-value">
-                            {typeof porcentaje === 'number' ? porcentaje.toFixed(1) : porcentaje}%
+                          
+                          {/* Barras */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', width: '55px' }}>
+                                Ansiedad
+                              </span>
+                              <div style={{ 
+                                flex: 1, 
+                                height: '6px', 
+                                background: 'var(--color-border)', 
+                                borderRadius: '3px', 
+                                overflow: 'hidden' 
+                              }}>
+                                <div style={{ 
+                                  height: '100%', 
+                                  width: `${Math.min(anxietyVal, 100)}%`,
+                                  background: getNivelColor(item.ansiedad || item.promedio_ansiedad || 0),
+                                  borderRadius: '3px'
+                                }} />
+                              </div>
+                              <span style={{ 
+                                fontSize: '0.75rem', 
+                                fontWeight: 600, 
+                                color: getNivelColor(item.ansiedad || item.promedio_ansiedad || 0),
+                                width: '40px',
+                                textAlign: 'right'
+                              }}>
+                                {anxietyVal.toFixed(0)}%
+                              </span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', width: '55px' }}>
+                                Estrés
+                              </span>
+                              <div style={{ 
+                                flex: 1, 
+                                height: '6px', 
+                                background: 'var(--color-border)', 
+                                borderRadius: '3px', 
+                                overflow: 'hidden' 
+                              }}>
+                                <div style={{ 
+                                  height: '100%', 
+                                  width: `${Math.min(stressVal, 100)}%`,
+                                  background: getNivelColor(item.estres || item.promedio_estres || 0),
+                                  borderRadius: '3px'
+                                }} />
+                              </div>
+                              <span style={{ 
+                                fontSize: '0.75rem', 
+                                fontWeight: 600, 
+                                color: getNivelColor(item.estres || item.promedio_estres || 0),
+                                width: '40px',
+                                textAlign: 'right'
+                              }}>
+                                {stressVal.toFixed(0)}%
+                              </span>
+                            </div>
+                          </div>
+                          
+                          {/* Cantidad */}
+                          <div style={{ 
+                            fontSize: '0.75rem', 
+                            color: 'var(--color-text-secondary)',
+                            textAlign: 'right'
+                          }}>
+                            {item.total || item.count || 0} análisis
                           </div>
                         </div>
                       );
                     })}
                   </div>
                 ) : (
-                  <div className="admin-empty-state" style={{ padding: "2rem" }}>
-                    <FaBrain />
-                    <p>No hay datos de emociones para el periodo seleccionado</p>
+                  <div style={{ 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    padding: '2rem',
+                    color: 'var(--color-text-secondary)'
+                  }}>
+                    <FaChartLine style={{ fontSize: '2rem', marginBottom: '0.5rem', opacity: 0.5 }} />
+                    <p>No hay tendencias disponibles</p>
                   </div>
                 )}
-              </div>
-            </div>
+              </PageCard>
 
-            {/* Tendencias y Usuarios activos */}
-            <div className="admin-grid-2">
-              {/* Tendencias recientes */}
-              <div className="admin-card">
-                <div className="admin-card-header">
-                  <h3><FaChartLine /> Tendencias Recientes</h3>
+              {/* Usuarios Más Activos */}
+              <PageCard size="full">
+                <div style={{ marginBottom: '1rem' }}>
+                  <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+                    <FaUsers style={{ color: '#3b82f6' }} /> Usuarios Más Activos
+                  </h3>
                 </div>
-                <div className="admin-card-body">
-                  {tendencias.length > 0 ? (
-                    <div className="admin-tendencias-list">
-                      {tendencias.slice(0, 7).map((item, index) => (
-                        <div key={index} className="admin-tendencia-item">
-                          <div className="admin-tendencia-fecha">
-                            {new Date(item.fecha).toLocaleDateString('es', { weekday: 'short', day: 'numeric' })}
+                
+                {topUsuarios.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {topUsuarios.map((usuario, index) => {
+                      const anxietyVal = normalizePercentage(usuario.promedio_ansiedad || 0);
+                      
+                      return (
+                        <div 
+                          key={index} 
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '1rem',
+                            padding: '0.75rem 1rem',
+                            background: index < 3 ? `linear-gradient(135deg, ${['#fbbf24', '#9ca3af', '#cd7f32'][index]}15, transparent)` : 'var(--color-bg)',
+                            borderRadius: '12px',
+                            borderLeft: index < 3 ? `3px solid ${['#fbbf24', '#9ca3af', '#cd7f32'][index]}` : 'none'
+                          }}
+                        >
+                          {/* Ranking */}
+                          <div style={{ 
+                            width: '32px', 
+                            height: '32px', 
+                            borderRadius: '50%', 
+                            background: index < 3 
+                              ? `linear-gradient(135deg, ${['#fbbf24', '#9ca3af', '#cd7f32'][index]}, ${['#f59e0b', '#6b7280', '#a0522d'][index]})`
+                              : 'var(--color-border)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontWeight: 700,
+                            fontSize: '0.85rem',
+                            color: index < 3 ? '#fff' : 'var(--color-text-secondary)'
+                          }}>
+                            {index + 1}
                           </div>
-                          <div className="admin-tendencia-bars">
-                            <div className="admin-mini-bar">
-                              <span className="admin-mini-label">Ansiedad</span>
-                              <div className="admin-mini-progress">
-                                <div 
-                                  style={{ 
-                                    width: `${(item.ansiedad || 0) * 100}%`,
-                                    backgroundColor: getNivelColor(item.ansiedad || 0),
-                                    height: "100%",
-                                    borderRadius: "2px"
-                                  }}
-                                />
-                              </div>
-                              <span className="admin-mini-value">{((item.ansiedad || 0) * 100).toFixed(0)}%</span>
-                            </div>
-                            <div className="admin-mini-bar">
-                              <span className="admin-mini-label">Estrés</span>
-                              <div className="admin-mini-progress">
-                                <div 
-                                  style={{ 
-                                    width: `${(item.estres || 0) * 100}%`,
-                                    backgroundColor: getNivelColor(item.estres || 0),
-                                    height: "100%",
-                                    borderRadius: "2px"
-                                  }}
-                                />
-                              </div>
-                              <span className="admin-mini-value">{((item.estres || 0) * 100).toFixed(0)}%</span>
-                            </div>
-                          </div>
-                          <div className="admin-tendencia-count">
-                            {item.total || item.count || 0} análisis
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="admin-empty-state" style={{ padding: "2rem" }}>
-                      <FaChartLine />
-                      <p>No hay tendencias disponibles</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Usuarios más activos */}
-              <div className="admin-card">
-                <div className="admin-card-header">
-                  <h3><FaUsers /> Usuarios Más Activos</h3>
-                </div>
-                <div className="admin-card-body">
-                  {topUsuarios.length > 0 ? (
-                    <div className="admin-usuarios-list">
-                      {topUsuarios.map((usuario, index) => (
-                        <div key={index} className="admin-usuario-item">
-                          <div className="admin-usuario-rank">#{index + 1}</div>
-                          <div className="admin-usuario-info">
-                            <div className="admin-usuario-nombre">
+                          
+                          {/* Info */}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ 
+                              fontWeight: 600, 
+                              color: 'var(--color-text)',
+                              fontSize: '0.95rem',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap'
+                            }}>
                               {usuario.nombre || usuario.email || `Usuario ${usuario.id_usuario}`}
                             </div>
-                            <div className="admin-usuario-stats">
+                            <div style={{ 
+                              fontSize: '0.75rem', 
+                              color: 'var(--color-text-secondary)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.5rem'
+                            }}>
                               <span>{usuario.total_analisis || usuario.count || 0} análisis</span>
                               {usuario.promedio_ansiedad !== undefined && (
-                                <span style={{ color: getNivelColor(usuario.promedio_ansiedad) }}>
-                                  • Ansiedad: {(usuario.promedio_ansiedad * 100).toFixed(0)}%
-                                </span>
+                                <>
+                                  <span>•</span>
+                                  <span style={{ color: getNivelColor(usuario.promedio_ansiedad) }}>
+                                    Ansiedad: {anxietyVal.toFixed(0)}%
+                                  </span>
+                                </>
                               )}
                             </div>
                           </div>
-                          <div className="admin-usuario-badge">
-                            {usuario.clasificacion === 'critico' && (
-                              <span className="admin-badge admin-badge-danger">⚠️ Crítico</span>
-                            )}
-                            {usuario.clasificacion === 'alerta' && (
-                              <span className="admin-badge admin-badge-warning">⚡ Alerta</span>
-                            )}
-                          </div>
+                          
+                          {/* Badge */}
+                          {usuario.clasificacion === 'critico' && (
+                            <span style={{ 
+                              background: '#ef4444', 
+                              color: 'white', 
+                              padding: '0.25rem 0.5rem', 
+                              borderRadius: '6px', 
+                              fontSize: '0.7rem',
+                              fontWeight: 600
+                            }}>
+                              ⚠️ Crítico
+                            </span>
+                          )}
+                          {usuario.clasificacion === 'alerta' && (
+                            <span style={{ 
+                              background: '#f97316', 
+                              color: 'white', 
+                              padding: '0.25rem 0.5rem', 
+                              borderRadius: '6px', 
+                              fontSize: '0.7rem',
+                              fontWeight: 600
+                            }}>
+                              ⚡ Alerta
+                            </span>
+                          )}
                         </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="admin-empty-state" style={{ padding: "2rem" }}>
-                      <FaUsers />
-                      <p>No hay datos de usuarios disponibles</p>
-                    </div>
-                  )}
-                </div>
-              </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div style={{ 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    padding: '2rem',
+                    color: 'var(--color-text-secondary)'
+                  }}>
+                    <FaUsers style={{ fontSize: '2rem', marginBottom: '0.5rem', opacity: 0.5 }} />
+                    <p>No hay datos de usuarios disponibles</p>
+                  </div>
+                )}
+              </PageCard>
             </div>
 
             {/* Métricas de IA */}
-            <div className="admin-card" style={{ marginTop: "1.5rem" }}>
-              <div className="admin-card-header">
-                <h3><FaBrain /> Métricas del Modelo de IA</h3>
+            <PageCard size="xl">
+              <div style={{ marginBottom: '1rem' }}>
+                <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+                  <FaBrain style={{ color: '#9c27b0' }} /> Métricas del Modelo de IA
+                </h3>
               </div>
-              <div className="admin-card-body">
-                <div className="admin-stats-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))" }}>
-                  <div className="admin-stat-card admin-stat-card-sm">
-                    <div className="admin-stat-icon">🎯</div>
-                    <div className="admin-stat-value">94.5%</div>
-                    <div className="admin-stat-label">Precisión del Modelo</div>
-                  </div>
-                  <div className="admin-stat-card admin-stat-card-sm">
-                    <div className="admin-stat-icon">⚡</div>
-                    <div className="admin-stat-value">1.2s</div>
-                    <div className="admin-stat-label">Tiempo Promedio</div>
-                  </div>
-                  <div className="admin-stat-card admin-stat-card-sm">
-                    <div className="admin-stat-icon">🔊</div>
-                    <div className="admin-stat-value">8</div>
-                    <div className="admin-stat-label">Emociones Detectables</div>
-                  </div>
-                  <div className="admin-stat-card admin-stat-card-sm">
-                    <div className="admin-stat-icon">📁</div>
-                    <div className="admin-stat-value">CNN</div>
-                    <div className="admin-stat-label">Tipo de Modelo</div>
-                  </div>
+              
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', 
+                gap: '1rem' 
+              }}>
+                <div style={{
+                  background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.05))',
+                  borderRadius: '12px',
+                  padding: '1.25rem',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>🎯</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#10b981' }}>94.5%</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>Precisión</div>
+                </div>
+                
+                <div style={{
+                  background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.05))',
+                  borderRadius: '12px',
+                  padding: '1.25rem',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>⚡</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#3b82f6' }}>1.2s</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>Tiempo Promedio</div>
+                </div>
+                
+                <div style={{
+                  background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(139, 92, 246, 0.05))',
+                  borderRadius: '12px',
+                  padding: '1.25rem',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>🔊</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#8b5cf6' }}>8</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>Emociones</div>
+                </div>
+                
+                <div style={{
+                  background: 'linear-gradient(135deg, rgba(249, 115, 22, 0.1), rgba(249, 115, 22, 0.05))',
+                  borderRadius: '12px',
+                  padding: '1.25rem',
+                  textAlign: 'center'
+                }}>
+                  <div style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>🧠</div>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#f97316' }}>CNN</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>Tipo Modelo</div>
                 </div>
               </div>
-            </div>
+            </PageCard>
           </>
         )}
       </div>
