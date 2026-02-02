@@ -23,7 +23,7 @@ def get_sesiones():
                 u.nombre as usuario,
                 u.correo as email,
                 s.ip_address,
-                s.dispositivo,
+                s.user_agent as dispositivo,
                 s.fecha_inicio,
                 s.fecha_fin,
                 TIMESTAMPDIFF(MINUTE, s.fecha_inicio, s.fecha_fin) as duracion_minutos
@@ -67,12 +67,11 @@ def get_cambios_roles():
                 u.correo as email,
                 r.nombre_rol as rol_nuevo,
                 'usuario' as rol_anterior,
-                ua.nombre as admin_asigna,
+                NULL as admin_asigna,
                 ru.fecha_creacion as fecha_cambio
             FROM rol_usuario ru
             LEFT JOIN usuario u ON ru.id_usuario = u.id_usuario
             LEFT JOIN rol r ON ru.id_rol = r.id_rol
-            LEFT JOIN usuario ua ON ru.id_admin_asigna = ua.id_usuario
             ORDER BY ru.fecha_creacion DESC
             LIMIT 500
         """

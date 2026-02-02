@@ -38,7 +38,7 @@ def get_todas_sesiones():
                 sj.notas
             FROM sesiones_juego sj
             LEFT JOIN usuario u ON sj.id_usuario = u.id_usuario
-            LEFT JOIN juegos_terapeuticos jt ON sj.id_juego = jt.id
+            LEFT JOIN juegos_terapeuticos jt ON sj.id_juego = jt.id_juego
             ORDER BY sj.fecha_inicio DESC
             LIMIT 500
         """
@@ -140,7 +140,7 @@ def get_sesiones_usuario(id_usuario):
                 jt.nombre as nombre_juego,
                 jt.descripcion as descripcion_juego
             FROM sesiones_juego sj
-            LEFT JOIN juegos_terapeuticos jt ON sj.id_juego = jt.id
+            LEFT JOIN juegos_terapeuticos jt ON sj.id_juego = jt.id_juego
             WHERE sj.id_usuario = %s
             ORDER BY sj.fecha_inicio DESC
         """
