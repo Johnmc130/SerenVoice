@@ -148,7 +148,17 @@ class ResultadosService:
             ORDER BY mes DESC
         """
         
-        return DatabaseConnection.execute_query(query, (id_usuario, meses))
+        resultados = DatabaseConnection.execute_query(query, (id_usuario, meses))
+        
+        # Convertir Decimal a float para evitar errores en serialización JSON
+        if resultados:
+            for r in resultados:
+                if r.get('promedio_estres') is not None:
+                    r['promedio_estres'] = float(r['promedio_estres'])
+                if r.get('promedio_ansiedad') is not None:
+                    r['promedio_ansiedad'] = float(r['promedio_ansiedad'])
+        
+        return resultados
     
     @staticmethod
     def get_ultimos_resultados(id_usuario, cantidad=5):

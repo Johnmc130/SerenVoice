@@ -30,7 +30,7 @@ export default function DetalleGrupo() {
   const [joining, setJoining] = useState(false);
   const [activeTab, setActiveTab] = useState('info');
   const [showNewActivity, setShowNewActivity] = useState(false);
-  const [newActivity, setNewActivity] = useState({ titulo: '', descripcion: '', tipo_actividad: 'tarea', fecha_inicio: '', fecha_fin: '' });
+  const [newActivity, setNewActivity] = useState({ titulo: '', descripcion: '', tipo_actividad: 'tarea', fecha_programada: '', duracion_estimada: '', creador_participa: true });
   const [creatingActivity, setCreatingActivity] = useState(false);
   const [editingActivity, setEditingActivity] = useState(null);
   // Member management states
@@ -130,18 +130,38 @@ export default function DetalleGrupo() {
     
     setCreatingActivity(true);
     try {
+      // Construir payload solo con campos que tienen valor (como móvil)
+      const activityData = {
+        titulo: newActivity.titulo.trim(),
+        descripcion: newActivity.descripcion?.trim() || null,
+        tipo_actividad: newActivity.tipo_actividad,
+        creador_participa: newActivity.creador_participa,
+      };
+
+      // Solo agregar fecha si tiene valor
+      if (newActivity.fecha_programada && newActivity.fecha_programada.trim()) {
+        activityData.fecha_programada = newActivity.fecha_programada.trim();
+      }
+
+      // Solo agregar duración si tiene valor
+      if (newActivity.duracion_estimada && newActivity.duracion_estimada.trim()) {
+        activityData.duracion_estimada = parseInt(newActivity.duracion_estimada) || null;
+      }
+
+      console.log("📤 Enviando actividad:", activityData);
+
       if (editingActivity) {
-        await groupsService.actualizarActividad(id, editingActivity.id_actividad, newActivity);
+        await groupsService.actualizarActividad(id, editingActivity.id_actividad, activityData);
         setEditingActivity(null);
       } else {
-        await groupsService.crearActividad(id, newActivity);
+        await groupsService.crearActividad(id, activityData);
       }
-      setNewActivity({ titulo: '', descripcion: '', tipo_actividad: 'tarea', fecha_inicio: '', fecha_fin: '' });
+      setNewActivity({ titulo: '', descripcion: '', tipo_actividad: 'tarea', fecha_programada: '', duracion_estimada: '', creador_participa: true });
       setShowNewActivity(false);
       await cargarActividades();
     } catch (e) {
       console.error(e);
-      setError('Error al guardar la actividad');
+      setError(e.response?.data?.error || 'Error al guardar la actividad');
     } finally {
       setCreatingActivity(false);
     }
@@ -165,8 +185,9 @@ export default function DetalleGrupo() {
       titulo: actividad.titulo || '',
       descripcion: actividad.descripcion || '',
       tipo_actividad: actividad.tipo_actividad || 'tarea',
-      fecha_inicio: actividad.fecha_inicio ? actividad.fecha_inicio.slice(0, 10) : '',
-      fecha_fin: actividad.fecha_fin ? actividad.fecha_fin.slice(0, 10) : ''
+      fecha_programada: actividad.fecha_programada ? actividad.fecha_programada.slice(0, 16) : (actividad.fecha_inicio ? actividad.fecha_inicio.slice(0, 10) + 'T09:00' : ''),
+      duracion_estimada: actividad.duracion_estimada ? String(actividad.duracion_estimada) : '',
+      creador_participa: actividad.creador_participa !== false
     });
     setShowNewActivity(true);
   };
@@ -212,12 +233,6 @@ export default function DetalleGrupo() {
     const uid = usuario.id || usuario.usuario_id || usuario._id || usuario.id_usuario;
     setAddingMember(uid);
     try {
-      await groupsService.invitarMiembro(id, { 
-        usuario_id: uid, 
-        correo: usuario.correo || usuario.email 
-      });
-      setSearchTerm('');
-      setSearchResults([]);
       await groupsService.invitarMiembro(id, { 
         usuario_id: uid, 
         correo: usuario.correo || usuario.email 
@@ -737,7 +752,7 @@ export default function DetalleGrupo() {
                 <div style={{ marginBottom: '1.5rem' }}>
                   {!showNewActivity ? (
                     <button
-                      onClick={() => { setShowNewActivity(true); setEditingActivity(null); setNewActivity({ titulo: '', descripcion: '', tipo_actividad: 'tarea', fecha_inicio: '', fecha_fin: '' }); }}
+                      onClick={() => { setShowNewActivity(true); setEditingActivity(null); setNewActivity({ titulo: '', descripcion: '', tipo_actividad: 'tarea', fecha_programada: '', duracion_estimada: '', creador_participa: true }); }}
                       className="auth-button"
                       style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
                     >
@@ -797,20 +812,20 @@ export default function DetalleGrupo() {
                                 color: 'var(--color-text-main)'
                               }}
                             >
-                              <option value="tarea">Tarea</option>
-                              <option value="ejercicio_respiracion">Ejercicio de Respiración</option>
-                              <option value="meditacion_guiada">Meditación Guiada</option>
-                              <option value="reflexion">Reflexión</option>
-                              <option value="juego_grupal">Juego Grupal</option>
-                              <option value="otro">Otro</option>
+                              <option value="tarea">📝 Tarea</option>
+                              <option value="juego_grupal">🎮 Juego Grupal</option>
+                              <option value="ejercicio_respiracion">🌬️ Ejercicio de Respiración</option>
+                              <option value="meditacion_guiada">🧘 Meditación Guiada</option>
+                              <option value="reflexion">💭 Reflexión</option>
+                              <option value="otro">📌 Otro</option>
                             </select>
                           </div>
                           <div>
-                            <label style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', marginBottom: '0.25rem', display: 'block' }}>Fecha Inicio</label>
+                            <label style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', marginBottom: '0.25rem', display: 'block' }}>Fecha y Hora (opcional)</label>
                             <input
-                              type="date"
-                              value={newActivity.fecha_inicio}
-                              onChange={e => setNewActivity({ ...newActivity, fecha_inicio: e.target.value })}
+                              type="datetime-local"
+                              value={newActivity.fecha_programada}
+                              onChange={e => setNewActivity({ ...newActivity, fecha_programada: e.target.value })}
                               style={{
                                 width: '100%',
                                 padding: '0.75rem',
@@ -822,11 +837,14 @@ export default function DetalleGrupo() {
                             />
                           </div>
                           <div>
-                            <label style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', marginBottom: '0.25rem', display: 'block' }}>Fecha Fin</label>
+                            <label style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)', marginBottom: '0.25rem', display: 'block' }}>Duración (min, opcional)</label>
                             <input
-                              type="date"
-                              value={newActivity.fecha_fin}
-                              onChange={e => setNewActivity({ ...newActivity, fecha_fin: e.target.value })}
+                              type="number"
+                              placeholder="Ej: 30"
+                              min="1"
+                              max="480"
+                              value={newActivity.duracion_estimada}
+                              onChange={e => setNewActivity({ ...newActivity, duracion_estimada: e.target.value })}
                               style={{
                                 width: '100%',
                                 padding: '0.75rem',
@@ -837,6 +855,18 @@ export default function DetalleGrupo() {
                               }}
                             />
                           </div>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                          <input
+                            type="checkbox"
+                            id="creador_participa_form"
+                            checked={newActivity.creador_participa}
+                            onChange={e => setNewActivity({ ...newActivity, creador_participa: e.target.checked })}
+                            style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                          />
+                          <label htmlFor="creador_participa_form" style={{ color: 'var(--color-text-main)', cursor: 'pointer' }}>
+                            Participar automáticamente en esta actividad
+                          </label>
                         </div>
                         <div style={{ display: 'flex', gap: '0.5rem' }}>
                           <button type="submit" className="auth-button" disabled={creatingActivity}>

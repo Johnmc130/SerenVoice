@@ -274,6 +274,71 @@ def create_group():
         # Validaciones
         if not nombre:
             return jsonify({'error': 'El nombre del grupo es requerido'}), 400
+        
+        # Validar longitud del nombre
+        if len(nombre.strip()) < 3:
+            return jsonify({'error': 'El nombre del grupo debe tener al menos 3 caracteres'}), 400
+        if len(nombre) > 100:
+            return jsonify({'error': 'El nombre del grupo no puede exceder 100 caracteres'}), 400
+        
+        # Validar descripción si existe
+        if descripcion and len(descripcion) > 500:
+            return jsonify({'error': 'La descripción no puede exceder 500 caracteres'}), 400
+        
+        # Validar max_participantes
+        max_participantes = data.get('max_participantes')
+        if max_participantes is not None:
+            try:
+                max_participantes = int(max_participantes)
+                if max_participantes < 2:
+                    return jsonify({'error': 'El grupo debe permitir al menos 2 participantes'}), 400
+                if max_participantes > 100:
+                    return jsonify({'error': 'El grupo no puede exceder 100 participantes'}), 400
+            except (ValueError, TypeError):
+                return jsonify({'error': 'El número máximo de participantes debe ser un número válido'}), 400
+        
+        # Validar fechas si existen
+        fecha_inicio_str = data.get('fecha_inicio')
+        fecha_fin_str = data.get('fecha_fin')
+        
+        if fecha_inicio_str:
+            try:
+                # Intentar parsear la fecha
+                if isinstance(fecha_inicio_str, str):
+                    # Soportar múltiples formatos
+                    fecha_inicio_parsed = None
+                    for fmt in ['%Y-%m-%d', '%Y-%m-%d %H:%M', '%Y-%m-%d %H:%M:%S']:
+                        try:
+                            fecha_inicio_parsed = datetime.strptime(fecha_inicio_str, fmt)
+                            break
+                        except ValueError:
+                            continue
+                    
+                    if fecha_inicio_parsed:
+                        # Validar que no sea una fecha pasada
+                        if fecha_inicio_parsed.date() < datetime.now().date():
+                            return jsonify({'error': 'La fecha de inicio no puede ser anterior a hoy'}), 400
+            except Exception:
+                return jsonify({'error': 'Formato de fecha de inicio inválido. Use YYYY-MM-DD'}), 400
+        
+        if fecha_fin_str and fecha_inicio_str:
+            try:
+                if isinstance(fecha_fin_str, str) and isinstance(fecha_inicio_str, str):
+                    fecha_fin_parsed = None
+                    fecha_inicio_parsed = None
+                    for fmt in ['%Y-%m-%d', '%Y-%m-%d %H:%M', '%Y-%m-%d %H:%M:%S']:
+                        try:
+                            fecha_fin_parsed = datetime.strptime(fecha_fin_str, fmt)
+                            fecha_inicio_parsed = datetime.strptime(fecha_inicio_str, fmt)
+                            break
+                        except ValueError:
+                            continue
+                    
+                    if fecha_fin_parsed and fecha_inicio_parsed:
+                        if fecha_fin_parsed <= fecha_inicio_parsed:
+                            return jsonify({'error': 'La fecha de fin debe ser posterior a la fecha de inicio'}), 400
+            except Exception:
+                return jsonify({'error': 'Formato de fecha de fin inválido. Use YYYY-MM-DD'}), 400
 
         # Crear grupo
         id_grupo = Grupo.create(
@@ -494,9 +559,9 @@ def add_group_member(id_grupo):
         if not grupo:
             return jsonify({'error': 'Grupo no encontrado'}), 404
 
-        # Verificar permisos: solo facilitador o co_facilitador pueden agregar
+        # Verificar permisos: facilitador, co_facilitador o admin pueden agregar
         miembro_actual = GrupoMiembro.is_member(id_grupo, current_user_id)
-        if not miembro_actual or miembro_actual.get('rol_grupo') not in ['facilitador', 'co_facilitador']:
+        if not miembro_actual or miembro_actual.get('rol_grupo') not in ['facilitador', 'co_facilitador', 'admin']:
             return jsonify({'error': 'No tienes permiso para agregar miembros'}), 403
 
         usuario_id = data.get('usuario_id') or data.get('id')
@@ -511,6 +576,16 @@ def add_group_member(id_grupo):
         # Evitar duplicados
         if GrupoMiembro.is_member(id_grupo, usuario_id):
             return jsonify({'error': 'El usuario ya es miembro del grupo'}), 400
+        
+        # Validar límite de participantes
+        max_participantes = grupo.get('max_participantes')
+        if max_participantes:
+            # Contar miembros actuales
+            miembros_actuales = GrupoMiembro.get_group_members(id_grupo)
+            if len(miembros_actuales) >= max_participantes:
+                return jsonify({
+                    'error': f'El grupo ha alcanzado el límite máximo de {max_participantes} participantes'
+                }), 400
 
         GrupoMiembro.add_member(id_grupo, usuario_id)
         return jsonify({'message': 'Miembro agregado exitosamente'}), 201
@@ -658,15 +733,27 @@ def create_activity(id_grupo):
         
         print(f"[DEBUG] create_activity - id_grupo: {id_grupo}, user: {current_user_id}, data: {data}")
         
-        # Verificar que sea miembro (facilitador o co-facilitador)
+        # Verificar que sea miembro con permisos (facilitador, co_facilitador o admin)
         miembro = GrupoMiembro.is_member(id_grupo, current_user_id)
         print(f"[DEBUG] create_activity - miembro: {miembro}")
-        if not miembro or miembro['rol_grupo'] not in ['facilitador', 'co_facilitador']:
+        if not miembro or miembro['rol_grupo'] not in ['facilitador', 'co_facilitador', 'admin']:
             return jsonify({'error': 'No tienes permiso para crear actividades'}), 403
         
         # Validaciones
         if not data.get('titulo'):
             return jsonify({'error': 'El título es requerido'}), 400
+        
+        # Validar longitud del título
+        titulo = data.get('titulo', '').strip()
+        if len(titulo) < 3:
+            return jsonify({'error': 'El título debe tener al menos 3 caracteres'}), 400
+        if len(titulo) > 200:
+            return jsonify({'error': 'El título no puede exceder 200 caracteres'}), 400
+        
+        # Validar descripción si existe
+        descripcion = data.get('descripcion', '')
+        if descripcion and len(descripcion) > 1000:
+            return jsonify({'error': 'La descripción no puede exceder 1000 caracteres'}), 400
         
         # Parsear fechas - soportar múltiples formatos
         def parse_date_field(key):
@@ -695,6 +782,12 @@ def create_activity(id_grupo):
         # Aceptar fecha_programada o fecha_inicio como alias
         fecha_programada = parse_date_field('fecha_programada') or parse_date_field('fecha_inicio')
         
+        # Validar que la fecha no sea pasada
+        if fecha_programada:
+            # Comparar solo fechas (sin hora) para dar flexibilidad
+            if fecha_programada.date() < datetime.now().date():
+                return jsonify({'error': 'La fecha de la actividad no puede ser anterior a hoy'}), 400
+        
         # Parsear duración
         duracion_estimada = data.get('duracion_estimada')
         if duracion_estimada == '' or duracion_estimada == 'undefined':
@@ -702,8 +795,13 @@ def create_activity(id_grupo):
         elif duracion_estimada is not None:
             try:
                 duracion_estimada = int(duracion_estimada)
+                # Validar rango razonable
+                if duracion_estimada < 1:
+                    return jsonify({'error': 'La duración debe ser al menos 1 minuto'}), 400
+                if duracion_estimada > 480:  # 8 horas máximo
+                    return jsonify({'error': 'La duración no puede exceder 480 minutos (8 horas)'}), 400
             except (ValueError, TypeError):
-                duracion_estimada = None
+                return jsonify({'error': 'La duración debe ser un número válido de minutos'}), 400
 
         # Crear actividad
         print(f"[DEBUG] create_activity - Creando con: id_grupo={id_grupo}, id_creador={current_user_id}, titulo={data['titulo']}, tipo={data.get('tipo_actividad', 'tarea')}, fecha={fecha_programada}, duracion={duracion_estimada}")
@@ -966,16 +1064,27 @@ def participate_activity(id_actividad):
             return jsonify({'error': 'Ya estás registrado en esta actividad'}), 400
         
         # Registrar participación
-        id_participacion = ParticipacionActividad.create(
+        resultado = ParticipacionActividad.create(
             id_actividad=id_actividad,
             id_usuario=current_user_id,
-            estado_emocional_antes=data.get('estado_emocional_antes'),
-            notas_participante=data.get('notas')
+            estado_emocional_antes=data.get('estado_emocional_antes') if data else None,
+            notas_participante=data.get('notas') if data else None
         )
         
+        # Extraer el ID de la participación creada
+        id_participacion = None
+        if isinstance(resultado, dict):
+            id_participacion = resultado.get('last_id') or resultado.get('lastrowid')
+        elif isinstance(resultado, int):
+            id_participacion = resultado
+        
         return jsonify({
+            'success': True,
             'message': 'Participación registrada exitosamente',
-            'id_participacion': id_participacion
+            'id_participacion': id_participacion,
+            'data': {
+                'id_participacion': id_participacion
+            }
         }), 201
         
     except Exception as e:

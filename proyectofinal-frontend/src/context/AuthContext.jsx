@@ -157,7 +157,14 @@ export const AuthProvider = ({ children }) => {
     
     setToken(newToken);
     setRoles(newRoles);
+    
+    // Asegurar que user.role esté establecido desde roles array
+    if (newUser && !newUser.role && newRoles.length > 0) {
+      newUser.role = newRoles[0];
+    }
+    
     setUser(newUser);
+    setUserRoleState(newUser?.role || newRoles[0] || null);
     setShowTimeoutWarning(false);
     
     // Guardar user en el storage correcto

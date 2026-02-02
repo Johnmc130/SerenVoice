@@ -1,4 +1,4 @@
-import { useState, useContext } from "react";
+import { useState, useContext, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   FaEye,
@@ -7,6 +7,7 @@ import {
   FaLock,
   FaGoogle,
   FaMicrophone,
+  FaClock,
 } from "react-icons/fa";
 import logo from "../../assets/Logo.svg";
 import "../../global.css";
@@ -31,6 +32,32 @@ const Login = () => {
   const [availableRoles, setAvailableRoles] = useState([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [blockedUntil, setBlockedUntil] = useState(null);
+  const [countdown, setCountdown] = useState(0);
+
+  // Contador regresivo para bloqueo
+  useEffect(() => {
+    if (countdown > 0) {
+      const timer = setInterval(() => {
+        setCountdown(prev => {
+          if (prev <= 1) {
+            setBlockedUntil(null);
+            setError("");
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [countdown]);
+
+  // Formatear tiempo restante
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
   // 🔄 handleSubmit completamente actualizado
   const handleSubmit = async (e) => {
@@ -80,19 +107,27 @@ const Login = () => {
       } else {
         // Usar el primer rol con seguridad
         const role = (userRoles[0] || 'usuario').toString().toLowerCase();
-        if (role === 'admin') navigate('/admin/dashboard');
+        if (role === 'administrador' || role === 'admin') navigate('/admin/dashboard');
         else navigate('/dashboard');
       }
     } catch (err) {
       console.error("Error en login:", err);
       
-      // Verificar tipo de error
-      if (err.message && err.message.includes("verifica tu correo")) {
+      // Verificar si hay información de bloqueo en la respuesta
+      const responseData = err.response?.data;
+      
+      if (responseData?.blocked || responseData?.remaining_time) {
+        setBlockedUntil(true);
+        setCountdown(responseData.remaining_time || 900); // Default 15 min
+        setError(responseData.error || 'Demasiados intentos fallidos. Por favor espera.');
+      } else if (responseData?.attempts_left !== undefined && responseData.attempts_left <= 2) {
+        setError(`Credenciales incorrectas. Te quedan ${responseData.attempts_left} intento(s).`);
+      } else if (err.message && err.message.includes("verifica tu correo")) {
         setError(
           "Tu cuenta no está verificada. Por favor, revisa tu correo electrónico y haz clic en el enlace de verificación."
         );
       } else if (err.message && (err.message.includes("incorrecta") || err.message.includes("Credenciales"))) {
-        setError("Contraseña incorrecta. Por favor, verifica tus credenciales e intenta nuevamente.");
+        setError(err.message);
       } else {
         setError(
           err.message || "Error al iniciar sesión. Verifica tus credenciales."
@@ -293,7 +328,40 @@ const Login = () => {
               <h2>Iniciar Sesión</h2>
             </div>
 
-            {error && (
+            {/* Mensaje de bloqueo con contador */}
+            {blockedUntil && countdown > 0 && (
+              <div 
+                style={{ 
+                  marginBottom: "1rem",
+                  padding: "1rem",
+                  borderRadius: "12px",
+                  background: "linear-gradient(135deg, #ff6b6b 0%, #ee5a5a 100%)",
+                  color: "#fff",
+                  textAlign: "center",
+                  boxShadow: "0 4px 15px rgba(238, 90, 90, 0.3)"
+                }}
+              >
+                <FaClock style={{ fontSize: "2rem", marginBottom: "0.5rem" }} />
+                <p style={{ margin: 0, fontWeight: 600 }}>Cuenta bloqueada temporalmente</p>
+                <p style={{ margin: "0.5rem 0 0 0", fontSize: "0.9rem", opacity: 0.9 }}>
+                  Demasiados intentos fallidos
+                </p>
+                <div style={{ 
+                  fontSize: "2rem", 
+                  fontWeight: 700, 
+                  marginTop: "0.75rem",
+                  fontFamily: "monospace"
+                }}>
+                  {formatTime(countdown)}
+                </div>
+                <p style={{ margin: "0.5rem 0 0 0", fontSize: "0.8rem", opacity: 0.8 }}>
+                  Podrás intentar de nuevo cuando termine el contador
+                </p>
+              </div>
+            )}
+
+            {/* Mensaje de error normal */}
+            {error && !blockedUntil && (
               <div className="error-message" style={{ marginBottom: "1rem" }}>
                 {error}
               </div>
@@ -358,8 +426,15 @@ const Login = () => {
                 </label>
               </div>
 
-              <button type="submit" className="auth-button" disabled={loading}>
-                {loading ? "Iniciando sesión..." : "Iniciar Sesión"}
+              <button 
+                type="submit" 
+                className="auth-button" 
+                disabled={loading || (blockedUntil && countdown > 0)}
+                style={blockedUntil && countdown > 0 ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+              >
+                {loading ? "Iniciando sesión..." : 
+                 blockedUntil && countdown > 0 ? `Bloqueado (${formatTime(countdown)})` : 
+                 "Iniciar Sesión"}
               </button>
 
 

@@ -123,32 +123,107 @@ const NavbarAdministrador = ({ adminData = {}, onMenuToggle, isMobileMenuOpen })
             aria-label="Abrir menú de administrador"
           >
             {
-              // Mostrar imagen de perfil si existe, sino el ícono por defecto
+              // Avatar mejorado con fallback elegante
               (function renderAvatar() {
                 const foto = currentUser?.foto_perfil;
+                const nombre = currentUser?.nombre || currentUser?.nombres || 'Admin';
+                const iniciales = nombre.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+                
+                // Generar color basado en el nombre
+                const getColorFromName = (name) => {
+                  const colors = [
+                    'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                    'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                    'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+                    'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+                    'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
+                    'linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)',
+                    'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)',
+                  ];
+                  const index = name.charCodeAt(0) % colors.length;
+                  return colors[index];
+                };
+                
+                const avatarStyle = {
+                  width: 36,
+                  height: 36,
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: 10,
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  color: '#fff',
+                  textShadow: '0 1px 2px rgba(0,0,0,0.2)',
+                  background: getColorFromName(nombre),
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                  border: '2px solid rgba(255,255,255,0.3)',
+                  transition: 'transform 0.2s, box-shadow 0.2s',
+                };
+                
                 logger.debug('[NAVBAR ADMIN] Renderizando avatar, foto:', foto);
+                
                 if (foto) {
                   try {
                     const src = makeFotoUrlWithProxy(foto);
                     logger.debug('[NAVBAR ADMIN] URL de imagen generada:', src);
                     return (
-                      <img
-                        src={src}
-                        alt={`${currentUser.nombre || currentUser.nombres || 'Admin'} avatar`}
-                        style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', marginRight: 8 }}
-                        onError={(e) => {
-                          logger.error('[NAVBAR ADMIN] Error cargando imagen:', src);
-                          e.target.style.display = 'none';
-                        }}
-                      />
+                      <div style={{ position: 'relative', marginRight: 10 }}>
+                        <img
+                          src={src}
+                          alt={`${nombre} avatar`}
+                          style={{ 
+                            width: 36, 
+                            height: 36, 
+                            borderRadius: '50%', 
+                            objectFit: 'cover',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                            border: '2px solid rgba(255,255,255,0.3)',
+                          }}
+                          onError={(e) => {
+                            logger.error('[NAVBAR ADMIN] Error cargando imagen:', src);
+                            // Reemplazar con avatar de iniciales
+                            e.target.parentElement.innerHTML = `<div style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.85rem;font-weight:600;color:#fff;background:${getColorFromName(nombre)};box-shadow:0 2px 8px rgba(0,0,0,0.15);border:2px solid rgba(255,255,255,0.3)">${iniciales}</div>`;
+                          }}
+                        />
+                        <span style={{
+                          position: 'absolute',
+                          bottom: -2,
+                          right: -2,
+                          width: 12,
+                          height: 12,
+                          backgroundColor: '#22c55e',
+                          borderRadius: '50%',
+                          border: '2px solid var(--color-panel-solid, #fff)',
+                        }} title="En línea" />
+                      </div>
                     );
                   } catch (err) {
                     logger.warn('[NAVBAR_ADMIN] avatar render error:', err);
-                    return <FaUser />;
                   }
                 }
-                logger.debug('[NAVBAR ADMIN] No hay foto, mostrando ícono por defecto');
-                return <FaUser />;
+                
+                // Avatar con iniciales elegante
+                logger.debug('[NAVBAR ADMIN] No hay foto, mostrando avatar con iniciales');
+                return (
+                  <div style={{ position: 'relative', marginRight: 10 }}>
+                    <div style={avatarStyle}>
+                      {iniciales}
+                    </div>
+                    <span style={{
+                      position: 'absolute',
+                      bottom: -2,
+                      right: -2,
+                      width: 12,
+                      height: 12,
+                      backgroundColor: '#22c55e',
+                      borderRadius: '50%',
+                      border: '2px solid var(--color-panel-solid, #fff)',
+                    }} title="En línea" />
+                  </div>
+                );
               })()
             }
             <span>{currentUser.nombre || currentUser.nombres || 'Admin'}</span>

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   FaChartBar, FaChartPie, FaChartLine, FaTrophy, FaUsers, 
   FaBell, FaLightbulb, FaGamepad, FaSmile, FaClock, FaCalendar, 
-  FaSyncAlt, FaDownload, FaArrowLeft
+  FaSyncAlt, FaDownload, FaArrowLeft, FaFilePdf
 } from 'react-icons/fa';
 import reportesService from '../../services/reportesService';
 import PageCard from '../../components/Shared/PageCard';
@@ -45,6 +45,7 @@ export default function Reportes() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [reporte, setReporte] = useState(null);
   const [error, setError] = useState(null);
   const [activeSection, setActiveSection] = useState('resumen');
@@ -70,6 +71,118 @@ export default function Reportes() {
   const onRefresh = () => {
     setRefreshing(true);
     cargarReporte();
+  };
+
+  // Función para descargar el reporte
+  const onDownload = async () => {
+    setDownloading(true);
+    try {
+      // Generar contenido HTML para imprimir/guardar como PDF
+      const reporteHTML = generarReporteHTML(reporte);
+      const blob = new Blob([reporteHTML], { type: 'text/html' });
+      const url = window.URL.createObjectURL(blob);
+      
+      // Abrir en nueva ventana para imprimir como PDF
+      const printWindow = window.open(url, '_blank');
+      if (printWindow) {
+        printWindow.onload = () => {
+          printWindow.print();
+        };
+      } else {
+        // Fallback: descargar como HTML
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `reporte-serenvoice-${new Date().toISOString().split('T')[0]}.html`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Error descargando reporte:', err);
+      setError('Error al descargar el reporte');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  // Generar HTML para el reporte
+  const generarReporteHTML = (data) => {
+    if (!data) return '<html><body><h1>Sin datos</h1></body></html>';
+    
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Reporte SerenVoice - ${new Date().toLocaleDateString('es-ES')}</title>
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, sans-serif; padding: 40px; background: #f5f5f5; color: #333; }
+    .header { text-align: center; margin-bottom: 30px; border-bottom: 3px solid #5ad0d2; padding-bottom: 20px; }
+    .header h1 { color: #1e3a5f; margin: 0; }
+    .header p { color: #666; margin-top: 5px; }
+    .section { background: white; padding: 20px; margin: 20px 0; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .section h2 { color: #1e3a5f; border-bottom: 2px solid #5ad0d2; padding-bottom: 10px; }
+    .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin: 20px 0; }
+    .stat-card { background: #f0f7f7; padding: 15px; border-radius: 8px; text-align: center; }
+    .stat-value { font-size: 24px; font-weight: bold; color: #5ad0d2; }
+    .stat-label { font-size: 12px; color: #666; }
+    .emotion-bar { display: flex; align-items: center; margin: 10px 0; }
+    .emotion-name { width: 100px; font-weight: 500; }
+    .emotion-progress { flex: 1; height: 20px; background: #e0e0e0; border-radius: 10px; overflow: hidden; }
+    .emotion-fill { height: 100%; border-radius: 10px; }
+    .footer { text-align: center; margin-top: 40px; color: #999; font-size: 12px; }
+    @media print { body { background: white; } .section { box-shadow: none; border: 1px solid #ddd; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🎙️ Reporte de Bienestar Emocional</h1>
+    <p>SerenVoice - ${new Date().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+  </div>
+  
+  <div class="section">
+    <h2>📊 Resumen General</h2>
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value">${data.resumen?.total_analisis || 0}</div>
+        <div class="stat-label">Análisis Totales</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">${Number(data.resumen?.promedio_estres || 0).toFixed(1)}%</div>
+        <div class="stat-label">Estrés Promedio</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">${Number(data.resumen?.promedio_ansiedad || 0).toFixed(1)}%</div>
+        <div class="stat-label">Ansiedad Promedio</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">${data.juegos?.completados || 0}</div>
+        <div class="stat-label">Juegos Completados</div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="section">
+    <h2>🎭 Distribución de Emociones</h2>
+    ${(data.emociones || []).map(e => `
+      <div class="emotion-bar">
+        <div class="emotion-name">${e.emocion || e.emocion_principal || 'Desconocida'}</div>
+        <div class="emotion-progress">
+          <div class="emotion-fill" style="width: ${Math.min(e.porcentaje || e.cantidad || 0, 100)}%; background: ${emotionColors[e.emocion?.toLowerCase()] || '#5ad0d2'}"></div>
+        </div>
+        <div style="width: 50px; text-align: right; font-weight: 500;">${(e.porcentaje || e.cantidad || 0).toFixed ? Number(e.porcentaje || e.cantidad || 0).toFixed(1) : e.porcentaje || e.cantidad || 0}%</div>
+      </div>
+    `).join('')}
+  </div>
+  
+  <div class="footer">
+    <p>Generado por SerenVoice - Plataforma de Bienestar Emocional</p>
+    <p>Este reporte es confidencial y solo para uso personal</p>
+  </div>
+</body>
+</html>
+    `;
   };
 
   // Componente: Tarjeta de estadística
@@ -257,14 +370,30 @@ export default function Reportes() {
               Análisis completo de tu progreso y bienestar emocional
             </p>
           </div>
-          <button
-            onClick={onRefresh}
-            disabled={refreshing}
-            className="auth-button"
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-          >
-            <FaSyncAlt className={refreshing ? 'rotating' : ''} /> Actualizar
-          </button>
+          <div style={{ display: 'flex', gap: '0.75rem' }}>
+            <button
+              onClick={onDownload}
+              disabled={downloading || !reporte}
+              className="auth-button"
+              style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '0.5rem',
+                background: downloading ? 'var(--color-disabled)' : '#28a745'
+              }}
+              title="Descargar reporte como PDF"
+            >
+              <FaDownload className={downloading ? 'rotating' : ''} /> {downloading ? 'Generando...' : 'Descargar'}
+            </button>
+            <button
+              onClick={onRefresh}
+              disabled={refreshing}
+              className="auth-button"
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+            >
+              <FaSyncAlt className={refreshing ? 'rotating' : ''} /> Actualizar
+            </button>
+          </div>
         </div>
 
         {/* Navegación de secciones */}
@@ -302,13 +431,13 @@ export default function Reportes() {
               <StatCard
                 icon={FaChartLine}
                 title="Estrés Promedio"
-                value={`${reporte.resumen.promedio_estres.toFixed(1)}%`}
+                value={`${Number(reporte.resumen.promedio_estres || 0).toFixed(1)}%`}
                 color="#FF6B6B"
               />
               <StatCard
                 icon={FaChartLine}
                 title="Ansiedad Promedio"
-                value={`${reporte.resumen.promedio_ansiedad.toFixed(1)}%`}
+                value={`${Number(reporte.resumen.promedio_ansiedad || 0).toFixed(1)}%`}
                 color="#4ECDC4"
               />
               <StatCard
@@ -655,15 +784,15 @@ export default function Reportes() {
                 </h3>
                 <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end', height: '200px' }}>
                   {reporte.tendencia_mensual.slice(-6).map((item, index) => {
-                    const maxValue = Math.max(...reporte.tendencia_mensual.map(d => Math.max(d.promedio_estres || 0, d.promedio_ansiedad || 0)), 1);
-                    const stressHeight = ((item.promedio_estres || 0) / maxValue) * 100;
-                    const anxietyHeight = ((item.promedio_ansiedad || 0) / maxValue) * 100;
+                    const maxValue = Math.max(...reporte.tendencia_mensual.map(d => Math.max(Number(d.promedio_estres) || 0, Number(d.promedio_ansiedad) || 0)), 1);
+                    const stressHeight = ((Number(item.promedio_estres) || 0) / maxValue) * 100;
+                    const anxietyHeight = ((Number(item.promedio_ansiedad) || 0) / maxValue) * 100;
 
                     return (
                       <div key={index} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.5rem' }}>
                         <div style={{ display: 'flex', gap: '4px', height: '150px', alignItems: 'flex-end' }}>
                           <div
-                            title={`Estrés: ${item.promedio_estres?.toFixed(1)}%`}
+                            title={`Estrés: ${Number(item.promedio_estres || 0).toFixed(1)}%`}
                             style={{
                               width: '20px',
                               height: `${Math.max(stressHeight, 3)}%`,
@@ -672,7 +801,7 @@ export default function Reportes() {
                             }}
                           />
                           <div
-                            title={`Ansiedad: ${item.promedio_ansiedad?.toFixed(1)}%`}
+                            title={`Ansiedad: ${Number(item.promedio_ansiedad || 0).toFixed(1)}%`}
                             style={{
                               width: '20px',
                               height: `${Math.max(anxietyHeight, 3)}%`,

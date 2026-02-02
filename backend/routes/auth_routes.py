@@ -562,9 +562,10 @@ def update_profile():
 @bp.route('/login', methods=['POST'])
 @limiter.limit("20 per minute, 100 per hour")
 def login():
-    """Login con soporte dual de hash"""
+    """Login con soporte dual de hash y límite de intentos"""
     import traceback
     import hashlib
+    from services.login_attempts_service import LoginAttemptsService
     
     client_ip = request.remote_addr
     user_agent = request.headers.get('User-Agent', '')
@@ -588,6 +589,18 @@ def login():
         recordarme = data.get('recordarme', False)
         
         print(f"📧 Correo: {correo}")
+        
+        # Verificar si está bloqueado por intentos fallidos
+        if correo:
+            block_status = LoginAttemptsService.check_if_blocked(correo, client_ip)
+            if block_status['blocked']:
+                print(f"🚫 Usuario bloqueado: {correo}")
+                return jsonify({
+                    'success': False,
+                    'error': block_status['message'],
+                    'blocked': True,
+                    'remaining_time': block_status['remaining_time']
+                }), 429
 
         if not correo or not contrasena:
             return jsonify({
@@ -626,7 +639,19 @@ def login():
 
         if not user:
             print("❌ Usuario no encontrado")
-            return jsonify({'success': False, 'error': 'Credenciales incorrectas'}), 401
+            # Registrar intento fallido
+            attempt_result = LoginAttemptsService.record_failed_attempt(correo, client_ip)
+            error_msg = 'Credenciales incorrectas'
+            if attempt_result['blocked']:
+                error_msg = f'Demasiados intentos fallidos. Cuenta bloqueada por {attempt_result["block_duration"]} minutos.'
+            elif attempt_result['attempts_left'] <= 2:
+                error_msg = f'Credenciales incorrectas. Te quedan {attempt_result["attempts_left"]} intentos.'
+            return jsonify({
+                'success': False, 
+                'error': error_msg,
+                'attempts_left': attempt_result['attempts_left'],
+                'blocked': attempt_result['blocked']
+            }), 401
 
         print(f"✅ Usuario encontrado: {user['nombre']}")
 
@@ -704,7 +729,19 @@ def login():
 
         if not password_valid:
             print("❌ Contraseña incorrecta")
-            return jsonify({'success': False, 'error': 'Credenciales incorrectas'}), 401
+            # Registrar intento fallido
+            attempt_result = LoginAttemptsService.record_failed_attempt(correo, client_ip)
+            error_msg = 'Credenciales incorrectas'
+            if attempt_result['blocked']:
+                error_msg = f'Demasiados intentos fallidos. Cuenta bloqueada por {attempt_result["block_duration"]} minutos.'
+            elif attempt_result['attempts_left'] <= 2:
+                error_msg = f'Credenciales incorrectas. Te quedan {attempt_result["attempts_left"]} intentos.'
+            return jsonify({
+                'success': False, 
+                'error': error_msg,
+                'attempts_left': attempt_result['attempts_left'],
+                'blocked': attempt_result['blocked']
+            }), 401
 
         # ✅ VERIFICACIÓN DE EMAIL DESHABILITADA PARA PRODUCCIÓN
         # if user.get('auth_provider') == 'local' and not user.get('email_verificado'):
@@ -761,6 +798,9 @@ def login():
         except:
             pass
 
+        # Limpiar intentos fallidos después de login exitoso
+        LoginAttemptsService.clear_attempts(correo)
+        
         print("✅ LOGIN EXITOSO")
         print("="*80 + "\n")
 

@@ -186,7 +186,7 @@ class ParticipacionActividad:
     @staticmethod
     def get_by_id(id_participacion):
         """Obtener participación por ID"""
-        query = "SELECT * FROM participacion_actividad WHERE id_participacion = %s"
+        query = "SELECT * FROM participacion_actividad WHERE id = %s"
         results = DatabaseConnection.execute_query(query, (id_participacion,))
         return results[0] if results else None
     
@@ -245,8 +245,6 @@ class ParticipacionActividad:
                 'fecha_completada': p.get('fecha_completada'),
                 'estado_emocional_despues': p.get('estado_emocional_despues'),
                 'notas_participante': p.get('notas_participante'),
-                'id_audio': p.get('id_audio'),
-                'id_analisis': p.get('id_analisis'),
                 'id_resultado': p.get('id_resultado'),
                 'nombre': p.get('nombre'),
                 'apellido': p.get('apellido'),
@@ -279,21 +277,19 @@ class ParticipacionActividad:
     @staticmethod
     def mark_completed(id_participacion, estado_emocional_despues=None, notas_participante=None, 
                        id_audio=None, id_analisis=None, id_resultado=None):
-        """Marcar participación como completada con análisis de voz opcional"""
+        """Marcar participación como completada con resultado de análisis opcional"""
         query = """
             UPDATE participacion_actividad 
             SET completada = 1, 
                 fecha_completada = NOW(),
                 estado_emocional_despues = %s,
                 notas_participante = COALESCE(%s, notas_participante),
-                id_audio = COALESCE(%s, id_audio),
-                id_analisis = COALESCE(%s, id_analisis),
                 id_resultado = COALESCE(%s, id_resultado)
-            WHERE id_participacion = %s
+            WHERE id = %s
         """
         DatabaseConnection.execute_query(
             query, 
-            (estado_emocional_despues, notas_participante, id_audio, id_analisis, id_resultado, id_participacion),
+            (estado_emocional_despues, notas_participante, id_resultado, id_participacion),
             fetch=False
         )
         return True
@@ -301,6 +297,6 @@ class ParticipacionActividad:
     @staticmethod
     def update_notes(id_participacion, notas):
         """Actualizar notas del participante"""
-        query = "UPDATE participacion_actividad SET notas_participante = %s WHERE id_participacion = %s"
+        query = "UPDATE participacion_actividad SET notas_participante = %s WHERE id = %s"
         DatabaseConnection.execute_query(query, (notas, id_participacion), fetch=False)
         return True

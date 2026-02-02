@@ -73,7 +73,17 @@ class ParticipacionActividad:
             WHERE id_actividad = %s AND id_usuario = %s
         """
         results = DatabaseConnection.execute_query(query, (id_actividad, id_usuario))
-        return results[0] if results else None
+        if results:
+            result = dict(results[0])
+            # Agregar id_participacion como alias de id para compatibilidad con frontend
+            result['id_participacion'] = result.get('id')
+            return result
+        return None
+    
+    @staticmethod
+    def get_user_participation(id_actividad, id_usuario):
+        """Alias de check_participation para compatibilidad"""
+        return ParticipacionActividad.check_participation(id_actividad, id_usuario)
     
     @staticmethod
     def complete(id_participacion, estado_emocional_despues=None, notas_finales=None):
@@ -89,6 +99,27 @@ class ParticipacionActividad:
         DatabaseConnection.execute_query(
             query, 
             (estado_emocional_despues, notas_finales, id_participacion),
+            fetch=False
+        )
+        return True
+    
+    @staticmethod
+    def mark_completed(id_participacion, estado_emocional_despues=None, notas_participante=None, 
+                       id_audio=None, id_analisis=None, id_resultado=None):
+        """Marcar participación como completada con datos de análisis de voz opcionales"""
+        # Actualizar campos básicos
+        query = """
+            UPDATE participacion_actividad 
+            SET completada = 1,
+                fecha_completada = NOW(),
+                estado_emocional_despues = COALESCE(%s, estado_emocional_despues),
+                notas_participante = COALESCE(%s, notas_participante),
+                id_resultado = COALESCE(%s, id_resultado)
+            WHERE id = %s
+        """
+        DatabaseConnection.execute_query(
+            query, 
+            (estado_emocional_despues, notas_participante, id_resultado, id_participacion),
             fetch=False
         )
         return True

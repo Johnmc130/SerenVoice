@@ -87,7 +87,7 @@ const EnabledGoogleButton = () => {
           return;
         }
 
-        if (role === 'admin') {
+        if (role === 'administrador' || role === 'admin') {
           navigate('/admin/dashboard');
         } else {
           navigate('/dashboard');

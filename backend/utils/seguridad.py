@@ -282,8 +282,17 @@ def role_required(required_role):
                 else:
                     required_roles = [required_role]
 
+                # Normalizar roles: 'admin' y 'administrador' son equivalentes
+                def normalize_role(role):
+                    if role in ('admin', 'administrador'):
+                        return 'admin'
+                    return role
+                
+                normalized_user_roles = [normalize_role(r) for r in roles_list]
+                normalized_required = [normalize_role(r) for r in required_roles]
+
                 # Verificar si al menos uno de los roles requeridos está presente
-                if not any(r in roles_list for r in required_roles):
+                if not any(r in normalized_user_roles for r in normalized_required):
                     secure_log.security(
                         "Acceso denegado por rol insuficiente",
                         data={

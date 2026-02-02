@@ -246,6 +246,12 @@ def analyze_voice():
         nivel_neutral = emotions_map.get("neutral", 0.0)
         nivel_enojo = emotions_map.get("enojo", 0.0)
         nivel_sorpresa = emotions_map.get("sorpresa", 0.0)
+        
+        print(f"[audio_routes] DEBUG - Emociones mapeadas:")
+        print(f"  - emotions originales count: {len(emotions)}")
+        print(f"  - emotions_map keys: {list(emotions_map.keys())}")
+        print(f"  - emotions_map values: {list(emotions_map.values())}")
+        print(f"  - Nivel felicidad: {nivel_felicidad}, tristeza: {nivel_tristeza}, enojo: {nivel_enojo}")
 
         # Si no hay etiquetas explícitas de estrés/ansiedad, estimar con otras señales
         if nivel_estres == 0.0:
@@ -256,10 +262,44 @@ def analyze_voice():
             emotions_map["ansiedad"] = nivel_ansiedad  # Agregar al map normalizado
 
         # Convertir emotions_map de vuelta a lista para respuesta (EVITA DUPLICADOS)
+        # IMPORTANTE: Mantener el formato original de emotions con colores
+        color_map = {
+            "felicidad": "#FFD700",
+            "tristeza": "#4169E1",
+            "enojo": "#FF6347",
+            "neutral": "#808080",
+            "sorpresa": "#FF69B4",
+            "miedo": "#9370DB",
+            "estres": "#FF4500",
+            "ansiedad": "#9b5de5"
+        }
+        
+        # Capitalizar nombres para respuesta
+        name_display = {
+            "felicidad": "Felicidad",
+            "tristeza": "Tristeza",
+            "enojo": "Enojo",
+            "neutral": "Neutral",
+            "sorpresa": "Sorpresa",
+            "miedo": "Miedo",
+            "estres": "Estrés",
+            "ansiedad": "Ansiedad"
+        }
+        
         emotions_normalized = [
-            {"name": name, "value": round(value, 2)}
+            {
+                "name": name_display.get(name, name.capitalize()),
+                "value": round(value, 2),
+                "color": color_map.get(name, "#888888")
+            }
             for name, value in emotions_map.items()
+            if value > 0  # Solo emociones con valor > 0
         ]
+        
+        # Si emotions_normalized está vacío, usar las emociones originales
+        if not emotions_normalized and emotions:
+            print("[audio_routes] WARNING: emotions_normalized vacío, usando emociones originales")
+            emotions_normalized = emotions
 
         # Clasificación por umbrales
         max_score = max(nivel_estres, nivel_ansiedad)

@@ -64,6 +64,18 @@ reportesService.obtenerReporteCompleto = async () => {
   }
 };
 
+// Descargar reporte como PDF
+reportesService.descargarPDF = async () => {
+  try {
+    const response = await apiClient.get('/reportes/mi-reporte-completo/pdf', {
+      responseType: 'blob'
+    });
+    return response.data;
+  } catch (err) {
+    throw new Error(err.response?.data?.message || err.message || 'Error al descargar PDF');
+  }
+};
+
 reportesService.generarReporte = reportesService.generateReport;
 reportesService.misReportes = reportesService.getMyReports;
 reportesService.obtenerReportePorId = reportesService.getReportById;

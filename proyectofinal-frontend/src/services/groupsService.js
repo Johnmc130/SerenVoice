@@ -195,6 +195,33 @@ const groupsService = {
     const res = await apiClient.get(`${base}/actividades/${actividadId}/participantes`);
     return res.data;
   },
+
+  /**
+   * Obtener resultado grupal de una actividad
+   * @param {number} actividadId - ID de la actividad
+   */
+  obtenerResultadoGrupal: async (actividadId) => {
+    const res = await apiClient.get(`/api/actividades_grupo/${actividadId}/resultado`);
+    return res.data;
+  },
+
+  /**
+   * Obtener estado de una actividad grupal
+   * @param {number} actividadId - ID de la actividad
+   */
+  obtenerEstadoActividad: async (actividadId) => {
+    const res = await apiClient.get(`/api/actividades_grupo/${actividadId}/estado`);
+    return res.data;
+  },
+
+  /**
+   * Iniciar actividad grupal (solo facilitador)
+   * @param {number} actividadId - ID de la actividad
+   */
+  iniciarActividad: async (actividadId) => {
+    const res = await apiClient.post(`${base}/actividades/${actividadId}/iniciar`);
+    return res.data;
+  },
 };
 
 export default groupsService;

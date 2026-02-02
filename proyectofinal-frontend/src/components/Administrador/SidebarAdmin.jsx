@@ -69,32 +69,16 @@ const SidebarAdmin = ({ isCollapsed, onToggle, isMobileOpen }) => {
       label: "Usuarios",
     },
     {
-      type: "submenu",
-      id: "grupos",
+      type: "link",
+      to: "/admin/grupos",
       icon: <FaUserFriends />,
       label: "Grupos",
-      items: [
-        { to: "/admin/grupos", label: "Ver Grupos" },
-        { to: "/admin/grupos/nuevo", label: "Crear Grupo" },
-      ],
     },
     {
       type: "link",
       to: "/admin/alertas",
       icon: <FaExclamationTriangle />,
       label: "Alertas",
-    },
-    {
-      type: "link",
-      to: "/admin/notificaciones",
-      icon: <FaBell />,
-      label: "Notificaciones",
-    },
-    {
-      type: "link",
-      to: "/admin/preferencias-notificacion",
-      icon: <FaEnvelope />,
-      label: "Config. Notificaciones",
     },
     {
       type: "link",

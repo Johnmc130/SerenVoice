@@ -423,13 +423,9 @@ export default function GrupoForm(){
                             cursor: 'pointer'
                           }}
                         >
-                          <option value="apoyo">🤝 Apoyo</option>
                           <option value="terapia">💆 Terapia</option>
-                          <option value="taller">🎯 Taller</option>
-                          <option value="empresa">💼 Empresa</option>
-                          <option value="educativo">📚 Educativo</option>
-                          <option value="familiar">👨‍👩‍👧 Familiar</option>
-                          <option value="otro">📌 Otro</option>
+                          <option value="apoyo">🤝 Apoyo</option>
+                          <option value="social">👥 Social</option>
                         </select>
                       </div>
 
@@ -466,7 +462,6 @@ export default function GrupoForm(){
                         >
                           <option value="privado">🔒 Privado</option>
                           <option value="publico">🌐 Público</option>
-                          <option value="por_invitacion">✉️ Por invitación</option>
                         </select>
                       </div>
 

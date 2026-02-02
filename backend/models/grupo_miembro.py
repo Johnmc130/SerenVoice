@@ -9,10 +9,14 @@ class GrupoMiembro:
     def add_member(id_grupo, id_usuario, rol_grupo='miembro', permisos_especiales=None):
         """Agregar un miembro a un grupo"""
         # La tabla Railway usa ENUM('admin', 'moderador', 'miembro', 'participante', 'facilitador')
-        # Pero preferimos normalizar a los valores estándar
-        if rol_grupo == 'facilitador':
-            rol_grupo = 'admin'
-        elif rol_grupo == 'participante':
+        # Mantener facilitador como rol válido (no convertir a admin)
+        # Solo normalizar participante a miembro
+        if rol_grupo == 'participante':
+            rol_grupo = 'miembro'
+        
+        # Roles válidos: admin, moderador, miembro, facilitador, co_facilitador
+        valid_roles = ['admin', 'moderador', 'miembro', 'facilitador', 'co_facilitador']
+        if rol_grupo not in valid_roles:
             rol_grupo = 'miembro'
         
         query = """

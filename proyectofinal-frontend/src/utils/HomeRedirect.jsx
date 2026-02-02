@@ -24,7 +24,7 @@ const HomeRedirect = () => {
 
   // Si está autenticado, redirigir según rol
   if (user) {
-    if (user.role === 'admin') {
+    if (user.role === 'administrador' || user.role === 'admin') {
       return <Navigate to="/admin/dashboard" replace />;
     }
     return <Navigate to="/dashboard" replace />;

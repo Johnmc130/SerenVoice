@@ -1,6 +1,7 @@
 # backend/routes/sesion_grupal_routes.py
 """
 Rutas para gestión de sesiones de actividades grupales con análisis de voz.
+Usa las tablas existentes: actividades_grupo y participacion_actividad
 """
 
 from flask import Blueprint, request, jsonify, current_app
@@ -9,44 +10,24 @@ import os
 import uuid
 from werkzeug.utils import secure_filename
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from backend.models.sesion_actividad_grupal import (
-    SesionActividadGrupal,
-    ParticipacionSesionGrupal,
-    ResultadoGrupal
-)
+from backend.database.connection import DatabaseConnection
 from backend.models.grupo_miembro import GrupoMiembro
-from backend.services.sesion_grupal_service import SesionGrupalService
+from backend.models.actividad_grupo import ActividadGrupo
+from backend.models.participacion_actividad import ParticipacionActividad
 
 bp = Blueprint('sesiones_grupales', __name__, url_prefix='/api/sesiones-grupales')
 
 
 # ============================================================
-# SESIONES GRUPALES - CRUD
+# SESIONES GRUPALES - Usa actividades_grupo existentes
 # ============================================================
 
 @bp.route('/grupo/<int:id_grupo>', methods=['GET'])
 @jwt_required()
 def get_sesiones_grupo(id_grupo):
     """
-    Obtener todas las sesiones de un grupo
-    ---
-    tags:
-      - Sesiones Grupales
-    security:
-      - Bearer: []
-    parameters:
-      - name: id_grupo
-        in: path
-        type: integer
-        required: true
-      - name: estado
-        in: query
-        type: string
-        required: false
-        description: Filtrar por estado (pendiente, en_progreso, completada, cancelada)
-    responses:
-      200:
-        description: Lista de sesiones del grupo
+    Obtener todas las actividades/sesiones de un grupo
+    Usa la tabla actividades_grupo existente
     """
     try:
         identity = get_jwt_identity()
@@ -57,12 +38,12 @@ def get_sesiones_grupo(id_grupo):
         if not miembro:
             return jsonify({'error': 'No tienes acceso a este grupo'}), 403
         
-        estado = request.args.get('estado')
-        sesiones = SesionActividadGrupal.get_by_grupo(id_grupo, estado=estado)
+        # Usar actividades_grupo en lugar de sesion_actividad_grupal
+        actividades = ActividadGrupo.get_by_grupo(id_grupo)
         
         return jsonify({
             'success': True,
-            'data': sesiones
+            'data': actividades or []
         }), 200
         
     except Exception as e:
@@ -75,10 +56,8 @@ def get_sesiones_grupo(id_grupo):
 @jwt_required()
 def get_sesion_activa(id_grupo):
     """
-    Obtener la sesión activa actual de un grupo
-    ---
-    tags:
-      - Sesiones Grupales
+    Obtener la actividad activa actual de un grupo
+    Usa actividades_grupo en lugar de sesion_actividad_grupal
     """
     try:
         identity = get_jwt_identity()
@@ -89,22 +68,40 @@ def get_sesion_activa(id_grupo):
         if not miembro:
             return jsonify({'error': 'No tienes acceso a este grupo'}), 403
         
-        sesion = SesionActividadGrupal.get_active_session_for_grupo(id_grupo)
+        # Buscar actividad activa (no completada) en actividades_grupo
+        query = """
+            SELECT ag.*, 
+                   u.nombre as creador_nombre,
+                   u.apellido as creador_apellido,
+                   (SELECT COUNT(*) FROM participacion_actividad pa WHERE pa.id_actividad = ag.id_actividad) as total_participantes,
+                   (SELECT COUNT(*) FROM participacion_actividad pa WHERE pa.id_actividad = ag.id_actividad AND pa.completada = 1) as participantes_completados
+            FROM actividades_grupo ag
+            LEFT JOIN usuario u ON ag.id_creador = u.id_usuario
+            WHERE ag.id_grupo = %s 
+              AND ag.activo = 1 
+              AND ag.completada = 0
+            ORDER BY ag.fecha_inicio DESC
+            LIMIT 1
+        """
+        results = DatabaseConnection.execute_query(query, (id_grupo,))
+        actividad = results[0] if results else None
         
-        if sesion:
+        if actividad:
             # Obtener mi participación
-            mi_participacion = ParticipacionSesionGrupal.get_user_participation(
-                sesion['id_sesion'], current_user_id
+            mi_participacion = ParticipacionActividad.get_user_participation(
+                actividad['id_actividad'], current_user_id
             )
-            sesion['mi_participacion'] = mi_participacion
+            actividad['mi_participacion'] = mi_participacion
         
         return jsonify({
             'success': True,
-            'data': sesion,
-            'tiene_sesion_activa': sesion is not None
+            'data': actividad,
+            'tiene_sesion_activa': actividad is not None
         }), 200
         
     except Exception as e:
+        tb = traceback.format_exc()
+        print(f"[ERROR] get_sesion_activa: {str(e)}\n{tb}")
         return jsonify({'error': str(e)}), 500
 
 

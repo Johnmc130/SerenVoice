@@ -1,10 +1,17 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { FaTag, FaAlignLeft, FaList, FaCalendarAlt, FaPlus, FaCheck, FaPlay, FaEdit, FaTrash, FaTimes } from 'react-icons/fa';
+import { FaTag, FaAlignLeft, FaList, FaCalendarAlt, FaPlus, FaCheck, FaPlay, FaEdit, FaTrash, FaTimes, FaChartBar, FaUsers, FaClock, FaUserCheck } from 'react-icons/fa';
 import groupsService from '../../services/groupsService';
 
 export default function GroupActivitiesPanel({ grupoId, onQueueAdd, onQueueUpdate, queuedActivities = [] }){
   const [actividades, setActividades] = useState([]);
-  const [nuevo, setNuevo] = useState({ titulo:'', descripcion:'', tipo_actividad:'tarea', fecha_inicio:'', fecha_fin:'' });
+  const [nuevo, setNuevo] = useState({ 
+    titulo:'', 
+    descripcion:'', 
+    tipo_actividad:'tarea', 
+    fecha_programada:'',
+    duracion_estimada: '',
+    creador_participa: true 
+  });
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState('');
   const [editingIndex, setEditingIndex] = useState(null);
@@ -12,6 +19,9 @@ export default function GroupActivitiesPanel({ grupoId, onQueueAdd, onQueueUpdat
   const [showForm, setShowForm] = useState(false);
   const [participaciones, setParticipaciones] = useState({});
   const [loadingParticipacion, setLoadingParticipacion] = useState({});
+  const [showResultadoModal, setShowResultadoModal] = useState(false);
+  const [resultadoGrupal, setResultadoGrupal] = useState(null);
+  const [loadingResultado, setLoadingResultado] = useState(false);
 
   const cargar = useCallback(async () => {
     if (!grupoId) {
@@ -58,6 +68,13 @@ export default function GroupActivitiesPanel({ grupoId, onQueueAdd, onQueueUpdat
         const d = new Date(str + 'T00:00:00');
         return d.toLocaleDateString();
       }
+      if (/^\d{4}-\d{2}-\d{2}T/.test(str)) {
+        const d = new Date(str);
+        return d.toLocaleString('es-ES', { 
+          dateStyle: 'short', 
+          timeStyle: 'short' 
+        });
+      }
       const d = new Date(str);
       if (!isNaN(d)) return d.toLocaleString();
       return str;
@@ -92,9 +109,21 @@ export default function GroupActivitiesPanel({ grupoId, onQueueAdd, onQueueUpdat
 
   // Date limits
   const toDateInputString = (d) => d.toISOString().slice(0,10);
+  const toDateTimeInputString = (d) => {
+    const pad = (n) => n.toString().padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
   const normalizeForDateInput = (v) => {
     if (!v) return '';
-    try { const s = v.toString(); if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0,10); const d = new Date(s); if (!isNaN(d)) return d.toISOString().slice(0,10); return s.slice(0,10); } catch { return '' }
+    try { 
+      const s = v.toString(); 
+      // Si ya está en formato datetime-local
+      if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(s)) return s.slice(0,16);
+      if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0,10) + 'T09:00';
+      const d = new Date(s); 
+      if (!isNaN(d)) return toDateTimeInputString(d);
+      return '';
+    } catch { return '' }
   };
   const todayDate = new Date();
   const todayStr = toDateInputString(new Date(todayDate.getFullYear(), todayDate.getMonth(), todayDate.getDate()));
@@ -102,36 +131,35 @@ export default function GroupActivitiesPanel({ grupoId, onQueueAdd, onQueueUpdat
   maxDate.setFullYear(maxDate.getFullYear() + 1);
   const maxStr = toDateInputString(new Date(maxDate.getFullYear(), maxDate.getMonth(), maxDate.getDate()));
 
+  // Validación flexible como móvil: solo título obligatorio
   const validateDates = (obj) => {
     const titulo = (obj.titulo || obj.title || '').toString().trim();
-    const descripcion = (obj.descripcion || obj.description || '').toString().trim();
-    const tipo = (obj.tipo_actividad || obj.type || '').toString().trim();
-    const inicio = obj.fecha_inicio || obj.fechaInicio || null;
-    const fin = obj.fecha_fin || obj.fechaFin || null;
-
     if (!titulo) return { ok:false, msg: 'El título es obligatorio' };
-    if (!descripcion) return { ok:false, msg: 'La descripción es obligatoria' };
-    if (!tipo) return { ok:false, msg: 'Selecciona un tipo de actividad' };
-    if (!inicio || !fin) return { ok:false, msg: 'Debe completar Fecha Inicio y Fecha Fin' };
 
-    const parse = (s) => { if (!s) return null; try { return new Date(s + 'T00:00:00'); } catch { return new Date(s); } };
-    const di = parse(inicio);
-    const df = parse(fin);
-    const today = new Date(todayStr + 'T00:00:00');
-    const maxD = new Date(maxStr + 'T00:00:00');
+    // Validar fecha si se proporciona
+    const fechaProgramada = obj.fecha_programada || null;
+    if (fechaProgramada) {
+      const parse = (s) => { if (!s) return null; try { return new Date(s); } catch { return null; } };
+      const df = parse(fechaProgramada);
+      if (df && !isNaN(df)) {
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        if (df < today) return { ok:false, msg: 'La fecha no puede ser anterior a hoy' };
+      }
+    }
 
-    if (isNaN(di)) return { ok:false, msg: 'Fecha inicio inválida' };
-    if (isNaN(df)) return { ok:false, msg: 'Fecha fin inválida' };
-    if (di < today) return { ok:false, msg: 'La fecha de inicio no puede ser anterior a hoy' };
-    if (df < today) return { ok:false, msg: 'La fecha de fin no puede ser anterior a hoy' };
-    if (di > maxD) return { ok:false, msg: 'La fecha de inicio no puede ser mayor a un año desde hoy' };
-    if (df > maxD) return { ok:false, msg: 'La fecha de fin no puede ser mayor a un año desde hoy' };
-    if (df < di) return { ok:false, msg: 'La fecha de fin no puede ser anterior a la fecha de inicio' };
     return { ok:true };
   };
 
   const resetForm = () => {
-    setNuevo({ titulo:'', descripcion:'', tipo_actividad:'tarea', fecha_inicio:'', fecha_fin:'' });
+    setNuevo({ 
+      titulo:'', 
+      descripcion:'', 
+      tipo_actividad:'tarea', 
+      fecha_programada:'',
+      duracion_estimada: '',
+      creador_participa: true 
+    });
     setEditingIndex(null);
     setEditingId(null);
     setShowForm(false);
@@ -143,11 +171,29 @@ export default function GroupActivitiesPanel({ grupoId, onQueueAdd, onQueueUpdat
     const v = validateDates(nuevo);
     if (!v.ok) { setErrorMsg(v.msg); return; }
 
+    // Construir payload solo con campos que tienen valor (como móvil)
+    const activityData = {
+      titulo: nuevo.titulo.trim(),
+      descripcion: nuevo.descripcion?.trim() || null,
+      tipo_actividad: nuevo.tipo_actividad,
+      creador_participa: nuevo.creador_participa,
+    };
+
+    // Solo agregar fecha si tiene valor
+    if (nuevo.fecha_programada && nuevo.fecha_programada.trim()) {
+      activityData.fecha_programada = nuevo.fecha_programada.trim();
+    }
+
+    // Solo agregar duración si tiene valor
+    if (nuevo.duracion_estimada && nuevo.duracion_estimada.trim()) {
+      activityData.duracion_estimada = parseInt(nuevo.duracion_estimada) || null;
+    }
+
     if (!grupoId) {
       // Modo borrador para crear grupo
       if (onQueueAdd) {
         const nowIso = new Date().toISOString();
-        const queued = { ...nuevo, fecha_creacion: nowIso, fechaCreacion: nowIso };
+        const queued = { ...activityData, fecha_creacion: nowIso, fechaCreacion: nowIso };
         if (editingIndex !== null && typeof onQueueUpdate === 'function') {
           const updated = queuedActivities.map((it, idx) => idx === editingIndex ? queued : it);
           onQueueUpdate(updated);
@@ -160,16 +206,18 @@ export default function GroupActivitiesPanel({ grupoId, onQueueAdd, onQueueUpdat
     }
     
     try{
-      const nowIso = new Date().toISOString();
-      const payload = { ...nuevo, fecha_creacion: nowIso, fechaCreacion: nowIso };
+      console.log("📤 Enviando actividad:", activityData);
       if (editingId) {
-        await groupsService.actualizarActividad(grupoId, editingId, payload);
+        await groupsService.actualizarActividad(grupoId, editingId, activityData);
       } else {
-        await groupsService.crearActividad(grupoId, payload);
+        await groupsService.crearActividad(grupoId, activityData);
       }
       resetForm();
       cargar();
-    }catch(e){console.error('[GroupActivitiesPanel] crear',e)}
+    }catch(e){
+      console.error('[GroupActivitiesPanel] crear', e);
+      setErrorMsg(e.response?.data?.error || e.message || 'Error al crear actividad');
+    }
   };
 
   const eliminar = async (actividadId) => {
@@ -183,8 +231,9 @@ export default function GroupActivitiesPanel({ grupoId, onQueueAdd, onQueueUpdat
       titulo: a.titulo || a.title || '',
       descripcion: a.descripcion || a.description || '',
       tipo_actividad: a.tipo_actividad || a.type || 'tarea',
-      fecha_inicio: normalizeForDateInput(a.fecha_inicio || a.fechaInicio),
-      fecha_fin: normalizeForDateInput(a.fecha_fin || a.fechaFin),
+      fecha_programada: normalizeForDateInput(a.fecha_programada || a.fechaProgramada),
+      duracion_estimada: a.duracion_estimada ? String(a.duracion_estimada) : '',
+      creador_participa: a.creador_participa !== false,
     });
     setEditingIndex(index);
     setEditingId(null);
@@ -197,8 +246,9 @@ export default function GroupActivitiesPanel({ grupoId, onQueueAdd, onQueueUpdat
       titulo: a.titulo || a.title || '',
       descripcion: a.descripcion || a.description || '',
       tipo_actividad: a.tipo_actividad || a.type || 'tarea',
-      fecha_inicio: normalizeForDateInput(a.fecha_inicio || a.fechaInicio),
-      fecha_fin: normalizeForDateInput(a.fecha_fin || a.fechaFin),
+      fecha_programada: normalizeForDateInput(a.fecha_programada || a.fechaProgramada || a.fecha_inicio),
+      duracion_estimada: a.duracion_estimada ? String(a.duracion_estimada) : '',
+      creador_participa: a.creador_participa !== false,
     });
     setEditingId(a.id_actividad || a.id || a._id);
     setEditingIndex(null);
@@ -256,6 +306,25 @@ export default function GroupActivitiesPanel({ grupoId, onQueueAdd, onQueueUpdat
     }
   };
 
+  // Ver resultado grupal
+  const verResultadoGrupal = async (actividadId) => {
+    setLoadingResultado(true);
+    try {
+      const res = await groupsService.obtenerResultadoGrupal(actividadId);
+      if (res.success && res.data) {
+        setResultadoGrupal(res.data);
+        setShowResultadoModal(true);
+      } else {
+        setErrorMsg(res.error || 'No hay resultados disponibles aún');
+      }
+    } catch (e) {
+      console.error('[GroupActivitiesPanel] verResultado', e);
+      setErrorMsg('Resultado no disponible aún. Espera a que todos completen.');
+    } finally {
+      setLoadingResultado(false);
+    }
+  };
+
   // Estilos reutilizables
   const inputStyle = {
     width: '100%',
@@ -280,10 +349,10 @@ export default function GroupActivitiesPanel({ grupoId, onQueueAdd, onQueueUpdat
   const renderActivityCard = (a, index, isQueued = false) => {
     const actId = isQueued ? `queued-${index}` : (a.id_actividad || a.id);
     const titulo = a.titulo || a.title || 'Sin título';
-    const descripcion = a.descripcion || a.description || 'Sin descripción';
+    const descripcion = a.descripcion || a.description || '';
     const tipo = a.tipo_actividad || a.type || 'tarea';
-    const fechaInicio = formatDate(a.fecha_inicio || a.fechaInicio);
-    const fechaFin = formatDate(a.fecha_fin || a.fechaFin);
+    const fechaProgramada = formatDate(a.fecha_programada || a.fechaProgramada || a.fecha_inicio);
+    const duracion = a.duracion_estimada ? `${a.duracion_estimada} min` : '—';
     const part = participaciones[actId] || {};
     const isLoading = loadingParticipacion[actId];
 
@@ -301,7 +370,9 @@ export default function GroupActivitiesPanel({ grupoId, onQueueAdd, onQueueUpdat
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', gap: '0.5rem' }}>
           <div style={{ flex: 1 }}>
             <h4 style={{ margin: 0, color: 'var(--color-text-main)', fontSize: '1rem' }}>{titulo}</h4>
-            <p style={{ margin: '0.25rem 0 0', color: 'var(--color-text-secondary)', fontSize: '0.9rem' }}>{descripcion}</p>
+            {descripcion && (
+              <p style={{ margin: '0.25rem 0 0', color: 'var(--color-text-secondary)', fontSize: '0.9rem' }}>{descripcion}</p>
+            )}
           </div>
           <span style={{
             fontSize: '0.75rem',
@@ -316,7 +387,7 @@ export default function GroupActivitiesPanel({ grupoId, onQueueAdd, onQueueUpdat
           </span>
         </div>
 
-        {/* Fechas */}
+        {/* Fecha y Duración */}
         <div style={{ 
           display: 'grid', 
           gridTemplateColumns: '1fr 1fr', 
@@ -327,12 +398,16 @@ export default function GroupActivitiesPanel({ grupoId, onQueueAdd, onQueueUpdat
           borderRadius: '8px'
         }}>
           <div>
-            <span style={{ color: 'var(--color-text-secondary)' }}>Inicio:</span>
-            <div style={{ color: 'var(--color-text-main)', fontWeight: '500' }}>{fechaInicio}</div>
+            <span style={{ color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              <FaCalendarAlt style={{ fontSize: '0.75rem' }} /> Programada:
+            </span>
+            <div style={{ color: 'var(--color-text-main)', fontWeight: '500' }}>{fechaProgramada}</div>
           </div>
           <div>
-            <span style={{ color: 'var(--color-text-secondary)' }}>Fin:</span>
-            <div style={{ color: 'var(--color-text-main)', fontWeight: '500' }}>{fechaFin}</div>
+            <span style={{ color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              <FaClock style={{ fontSize: '0.75rem' }} /> Duración:
+            </span>
+            <div style={{ color: 'var(--color-text-main)', fontWeight: '500' }}>{duracion}</div>
           </div>
         </div>
 
@@ -340,8 +415,28 @@ export default function GroupActivitiesPanel({ grupoId, onQueueAdd, onQueueUpdat
         {!isQueued && grupoId && (
           <div style={{ padding: '0.5rem 0', borderTop: '1px solid var(--color-shadow)' }}>
             {part.completada ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#4caf50' }}>
-                <FaCheck /> ¡Completada!
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+                <span style={{ color: '#4caf50', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <FaCheck /> ¡Completada!
+                </span>
+                <button 
+                  onClick={() => verResultadoGrupal(actId)}
+                  disabled={loadingResultado}
+                  style={{
+                    padding: '0.4rem 0.75rem',
+                    borderRadius: '8px',
+                    border: 'none',
+                    background: 'var(--color-primary)',
+                    color: 'white',
+                    cursor: loadingResultado ? 'not-allowed' : 'pointer',
+                    fontSize: '0.85rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.25rem'
+                  }}
+                >
+                  <FaChartBar /> Ver Resultados
+                </button>
               </div>
             ) : part.participando ? (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
@@ -502,7 +597,7 @@ export default function GroupActivitiesPanel({ grupoId, onQueueAdd, onQueueUpdat
 
               {/* Descripción */}
               <div>
-                <label style={labelStyle}><FaAlignLeft /> Descripción</label>
+                <label style={labelStyle}><FaAlignLeft /> Descripción (opcional)</label>
                 <textarea
                   placeholder="Describe los objetivos y dinámica de la actividad..."
                   value={nuevo.descripcion}
@@ -531,31 +626,52 @@ export default function GroupActivitiesPanel({ grupoId, onQueueAdd, onQueueUpdat
                   </select>
                 </div>
 
-                {/* Fecha Inicio */}
+                {/* Fecha Programada */}
                 <div>
-                  <label style={labelStyle}><FaCalendarAlt /> Fecha Inicio</label>
+                  <label style={labelStyle}><FaCalendarAlt /> Fecha y Hora (opcional)</label>
                   <input
-                    type="date"
-                    min={todayStr}
-                    max={maxStr}
-                    value={nuevo.fecha_inicio}
-                    onChange={e => { setErrorMsg(''); setNuevo(n => ({ ...n, fecha_inicio: e.target.value })); }}
+                    type="datetime-local"
+                    min={todayStr + 'T00:00'}
+                    max={maxStr + 'T23:59'}
+                    value={nuevo.fecha_programada}
+                    onChange={e => { setErrorMsg(''); setNuevo(n => ({ ...n, fecha_programada: e.target.value })); }}
                     style={inputStyle}
                   />
                 </div>
 
-                {/* Fecha Fin */}
+                {/* Duración Estimada */}
                 <div>
-                  <label style={labelStyle}><FaCalendarAlt /> Fecha Fin</label>
+                  <label style={labelStyle}><FaClock /> Duración (min, opcional)</label>
                   <input
-                    type="date"
-                    min={todayStr}
-                    max={maxStr}
-                    value={nuevo.fecha_fin}
-                    onChange={e => { setErrorMsg(''); setNuevo(n => ({ ...n, fecha_fin: e.target.value })); }}
+                    type="number"
+                    placeholder="Ej: 30"
+                    min="1"
+                    max="480"
+                    value={nuevo.duracion_estimada}
+                    onChange={e => { setErrorMsg(''); setNuevo(n => ({ ...n, duracion_estimada: e.target.value })); }}
                     style={inputStyle}
                   />
                 </div>
+              </div>
+
+              {/* Creador participa */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <input
+                  type="checkbox"
+                  id="creador_participa"
+                  checked={nuevo.creador_participa}
+                  onChange={e => setNuevo(n => ({ ...n, creador_participa: e.target.checked }))}
+                  style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                />
+                <label htmlFor="creador_participa" style={{ 
+                  color: 'var(--color-text-main)', 
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}>
+                  <FaUserCheck /> Participar automáticamente en esta actividad
+                </label>
               </div>
 
               {/* Botones */}
@@ -637,6 +753,135 @@ export default function GroupActivitiesPanel({ grupoId, onQueueAdd, onQueueUpdat
               No hay actividades aún. ¡Crea la primera!
             </div>
           )}
+        </div>
+      )}
+
+      {/* Modal de Resultado Grupal */}
+      {showResultadoModal && resultadoGrupal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.7)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000,
+          padding: '1rem'
+        }}>
+          <div style={{
+            background: 'var(--color-panel-solid)',
+            borderRadius: '16px',
+            padding: '1.5rem',
+            maxWidth: '500px',
+            width: '100%',
+            maxHeight: '80vh',
+            overflow: 'auto',
+            boxShadow: '0 20px 60px rgba(0, 0, 0, 0.4)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--color-text-main)' }}>
+                <FaChartBar style={{ color: 'var(--color-primary)' }} /> Resultado Grupal
+              </h3>
+              <button 
+                onClick={() => setShowResultadoModal(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--color-text-secondary)',
+                  cursor: 'pointer',
+                  fontSize: '1.25rem'
+                }}
+              >
+                <FaTimes />
+              </button>
+            </div>
+
+            {/* Emoción Dominante */}
+            <div style={{
+              background: 'var(--color-panel)',
+              padding: '1rem',
+              borderRadius: '12px',
+              textAlign: 'center',
+              marginBottom: '1rem'
+            }}>
+              <div style={{ fontSize: '3rem', marginBottom: '0.5rem' }}>
+                {resultadoGrupal.emocion_dominante === 'felicidad' ? '😊' :
+                 resultadoGrupal.emocion_dominante === 'tristeza' ? '😢' :
+                 resultadoGrupal.emocion_dominante === 'ansiedad' ? '😰' :
+                 resultadoGrupal.emocion_dominante === 'calma' ? '😌' :
+                 resultadoGrupal.emocion_dominante === 'enojo' ? '😠' : '🎭'}
+              </div>
+              <div style={{ fontSize: '1.1rem', fontWeight: '600', color: 'var(--color-text-main)' }}>
+                {resultadoGrupal.emocion_dominante || 'Sin determinar'}
+              </div>
+              <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>
+                Emoción Dominante del Grupo
+              </div>
+            </div>
+
+            {/* Estadísticas */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1rem' }}>
+              <div style={{
+                background: 'rgba(244, 67, 54, 0.1)',
+                padding: '1rem',
+                borderRadius: '10px',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#f44336' }}>
+                  {Number(resultadoGrupal.nivel_estres_promedio || 0).toFixed(1)}%
+                </div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>Estrés Promedio</div>
+              </div>
+              <div style={{
+                background: 'rgba(255, 152, 0, 0.1)',
+                padding: '1rem',
+                borderRadius: '10px',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ff9800' }}>
+                  {Number(resultadoGrupal.nivel_ansiedad_promedio || 0).toFixed(1)}%
+                </div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)' }}>Ansiedad Promedio</div>
+              </div>
+            </div>
+
+            {/* Participantes */}
+            <div style={{
+              background: 'var(--color-panel)',
+              padding: '1rem',
+              borderRadius: '10px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.5rem'
+            }}>
+              <FaUsers style={{ color: 'var(--color-primary)' }} />
+              <span style={{ color: 'var(--color-text-main)' }}>
+                {resultadoGrupal.total_participantes || 0} participantes completaron
+              </span>
+            </div>
+
+            {/* Botón cerrar */}
+            <button
+              onClick={() => setShowResultadoModal(false)}
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                marginTop: '1rem',
+                borderRadius: '10px',
+                border: 'none',
+                background: 'var(--color-primary)',
+                color: 'white',
+                cursor: 'pointer',
+                fontWeight: '500'
+              }}
+            >
+              Cerrar
+            </button>
+          </div>
         </div>
       )}
     </div>

@@ -2,7 +2,7 @@ import React, { useEffect, useState, useContext } from 'react';
 import groupsService from '../../services/groupsService';
 import { useNavigate } from 'react-router-dom';
 import { ThemeContext } from "../../context/themeContextDef";
-import { FaUserFriends, FaChartBar, FaUsers, FaClipboardList, FaPlus, FaDownload, FaLock, FaGlobe, FaEnvelope, FaKey } from "react-icons/fa";
+import { FaUserFriends, FaChartBar, FaUsers, FaClipboardList, FaDownload, FaLock, FaGlobe, FaEnvelope, FaKey } from "react-icons/fa";
 import apiClient from '../../services/apiClient';
 import api from "../../config/api";
 import PageCard from "../../components/Shared/PageCard";
@@ -287,9 +287,6 @@ export default function Grupos() {
             </div>
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1rem' }}>
-            <button onClick={() => navigate('/admin/grupos/nuevo')} className="admin-btn admin-btn-primary">
-              <FaPlus /> Crear
-            </button>
             <button onClick={exportGrupos} className="admin-btn admin-btn-secondary">
               <FaDownload /> Exportar
             </button>
@@ -412,16 +409,22 @@ export default function Grupos() {
                     </div>
                   </div>
 
-                  {/* Facilitador y código */}
+                  {/* Facilitador/Creador y código */}
                   <div style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', marginBottom: '0.75rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.25rem' }}>
                       <FaUserFriends style={{ color: 'var(--color-primary)', fontSize: '0.85rem' }} />
-                      <span>{g.facilitador_nombre ? `${g.facilitador_nombre} ${g.facilitador_apellido}` : 'Sin facilitador'}</span>
+                      <span>
+                        {g.facilitador_nombre 
+                          ? `${g.facilitador_nombre} ${g.facilitador_apellido || ''}` 
+                          : g.creador_nombre 
+                            ? `${g.creador_nombre} ${g.creador_apellido || ''} (creador)` 
+                            : 'Sin facilitador'}
+                      </span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                       <FaKey style={{ color: 'var(--color-text-secondary)', fontSize: '0.85rem' }} />
                       <code style={{ background: 'var(--color-panel)', padding: '0.1rem 0.35rem', borderRadius: '4px', fontSize: '0.75rem', border: '1px solid var(--color-border)' }}>
-                        {g.codigo_acceso || 'N/A'}
+                        {g.codigo_acceso || g.codigo_invitacion || 'N/A'}
                       </code>
                     </div>
                   </div>

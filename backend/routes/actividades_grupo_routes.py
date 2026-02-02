@@ -46,6 +46,48 @@ def crear_actividad(grupo_id):
 
         if not nombre:
             return jsonify({'success': False, 'error': 'Nombre requerido'}), 400
+        
+        # Validar longitud del nombre
+        nombre = nombre.strip()
+        if len(nombre) < 3:
+            return jsonify({'success': False, 'error': 'El nombre debe tener al menos 3 caracteres'}), 400
+        if len(nombre) > 200:
+            return jsonify({'success': False, 'error': 'El nombre no puede exceder 200 caracteres'}), 400
+        
+        # Validar descripción
+        if descripcion and len(descripcion) > 1000:
+            return jsonify({'success': False, 'error': 'La descripción no puede exceder 1000 caracteres'}), 400
+        
+        # Validar duración
+        try:
+            duracion_minutos = int(duracion_minutos)
+            if duracion_minutos < 1:
+                return jsonify({'success': False, 'error': 'La duración debe ser al menos 1 minuto'}), 400
+            if duracion_minutos > 480:  # 8 horas máximo
+                return jsonify({'success': False, 'error': 'La duración no puede exceder 480 minutos (8 horas)'}), 400
+        except (ValueError, TypeError):
+            return jsonify({'success': False, 'error': 'La duración debe ser un número válido'}), 400
+        
+        # Validar fecha_inicio si se proporciona
+        fecha_inicio_str = data.get('fecha_inicio')
+        if fecha_inicio_str:
+            try:
+                from datetime import datetime
+                # Intentar parsear la fecha
+                fecha_inicio_parsed = None
+                for fmt in ['%Y-%m-%d', '%Y-%m-%d %H:%M', '%Y-%m-%d %H:%M:%S']:
+                    try:
+                        fecha_inicio_parsed = datetime.strptime(fecha_inicio_str, fmt)
+                        break
+                    except ValueError:
+                        continue
+                
+                if fecha_inicio_parsed:
+                    # Validar que no sea una fecha pasada
+                    if fecha_inicio_parsed.date() < datetime.now().date():
+                        return jsonify({'success': False, 'error': 'La fecha de inicio no puede ser anterior a hoy'}), 400
+            except Exception as e:
+                return jsonify({'success': False, 'error': 'Formato de fecha inválido. Use YYYY-MM-DD'}), 400
 
         conn = DatabaseConnection.get_connection()
         cursor = conn.cursor(dictionary=True)

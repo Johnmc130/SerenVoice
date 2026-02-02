@@ -4,7 +4,7 @@ import {
   FaArrowLeft, FaCalendar, FaUsers, FaClock, FaCheck, FaPlay, 
   FaGamepad, FaHeart, FaLungs, FaComment, FaTasks, FaEllipsisH,
   FaLightbulb, FaSmile, FaMeh, FaFrown, FaStar, FaMusic,
-  FaMicrophone, FaStop, FaSpinner, FaChartBar, FaSync
+  FaMicrophone, FaStop, FaSpinner, FaChartBar, FaSync, FaPrint
 } from 'react-icons/fa';
 import { MdPsychology } from 'react-icons/md';
 import { GiMeditation } from 'react-icons/gi';
@@ -821,19 +821,43 @@ const TareaActivity = ({ actividad, onComplete, participacion }) => {
       const userId = currentUser?.id_usuario || currentUser?.id;
       
       // Analizar audio
-      const resultadoAudio = await audioService.analyzeAudio(audioBlob, tiempoGrabacion, userId);
+      const respuestaCompleta = await audioService.analyzeAudio(audioBlob, tiempoGrabacion, userId);
+      
+      console.log('📊 Respuesta completa del análisis:', respuestaCompleta);
+      
+      // El backend devuelve {success, mode, emotions, audio_id, analisis_id, resultado_id, ...}
+      const audioId = respuestaCompleta?.audio_id;
+      const analisisId = respuestaCompleta?.analisis_id;
+      const resultadoId = respuestaCompleta?.resultado_id;
+      const emotions = respuestaCompleta?.emotions || [];
+      const emocionDominante = emotions.length > 0 
+        ? emotions.reduce((max, e) => e.value > max.value ? e : max, emotions[0]).name 
+        : 'neutral';
+      
+      // Construir resultado para visualización
+      const resultado = {
+        id_resultado: resultadoId,
+        emocion_dominante: emocionDominante,
+        nivel_felicidad: emotions.find(e => e.name.toLowerCase().includes('felic'))?.value || 0,
+        nivel_tristeza: emotions.find(e => e.name.toLowerCase().includes('trist'))?.value || 0,
+        nivel_enojo: emotions.find(e => e.name.toLowerCase().includes('enoj') || e.name.toLowerCase().includes('ira'))?.value || 0,
+        nivel_miedo: emotions.find(e => e.name.toLowerCase().includes('mied'))?.value || 0,
+        nivel_sorpresa: emotions.find(e => e.name.toLowerCase().includes('sorp'))?.value || 0,
+        nivel_neutral: emotions.find(e => e.name.toLowerCase().includes('neutr'))?.value || 0,
+        nivel_estres: emotions.find(e => e.name.toLowerCase().includes('estr'))?.value || 0,
+        nivel_ansiedad: emotions.find(e => e.name.toLowerCase().includes('ansi'))?.value || 0
+      };
       
       // Guardar en actividad
       await onComplete({
         notas: `Análisis de voz completado`,
-        estado_emocional_despues: resultadoAudio?.resultado?.emocion_dominante || 'neutral',
-        id_audio: resultadoAudio?.audio?.id_audio,
-        id_analisis: resultadoAudio?.analisis?.id_analisis,
-        id_resultado: resultadoAudio?.resultado?.id_resultado,
-        resultado_analisis: resultadoAudio?.resultado
+        estado_emocional_despues: emocionDominante,
+        id_audio: audioId,
+        id_analisis: analisisId,
+        id_resultado: resultadoId
       });
       
-      setMiResultado(resultadoAudio?.resultado);
+      setMiResultado(resultado);
       setAudioBlob(null);
       
       // Recargar participantes y mostrar resultado grupal después de 3 segundos
@@ -874,6 +898,257 @@ const TareaActivity = ({ actividad, onComplete, participacion }) => {
 
   const completados = participantes.filter(p => p.estado === 'completado');
   const pendientes = participantes.filter(p => p.estado !== 'completado');
+
+  // Función para imprimir resultados grupales
+  const imprimirResultadoGrupal = () => {
+    const ventanaImpresion = window.open('', '_blank');
+    const fecha = new Date().toLocaleDateString('es-ES', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    
+    const html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>Reporte de Análisis Grupal - ${actividad.titulo}</title>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { 
+            font-family: 'Segoe UI', Arial, sans-serif; 
+            padding: 40px; 
+            background: white;
+            color: #333;
+          }
+          .header {
+            border-bottom: 3px solid #5ad0d2;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+          }
+          .logo {
+            color: #5ad0d2;
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 10px;
+          }
+          h1 {
+            color: #1e3a5f;
+            font-size: 24px;
+            margin-bottom: 10px;
+          }
+          .meta {
+            color: #666;
+            font-size: 14px;
+          }
+          .section {
+            margin-bottom: 30px;
+            page-break-inside: avoid;
+          }
+          .section-title {
+            background: #1e3a5f;
+            color: white;
+            padding: 12px 15px;
+            border-radius: 8px;
+            font-size: 18px;
+            margin-bottom: 15px;
+          }
+          .card {
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+          }
+          .emotion-main {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            border: 2px solid ${getEmotionColor(resultadoGrupal?.emocion_predominante)};
+            text-align: center;
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+          }
+          .emotion-main .label {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 10px;
+          }
+          .emotion-main .value {
+            font-size: 36px;
+            font-weight: bold;
+            color: ${getEmotionColor(resultadoGrupal?.emocion_predominante)};
+            text-transform: capitalize;
+          }
+          .metrics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+          }
+          .metric-box {
+            background: #f9fafb;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+          }
+          .metric-box .icon {
+            font-size: 32px;
+            margin-bottom: 10px;
+          }
+          .metric-box .label {
+            color: #666;
+            font-size: 13px;
+            margin-bottom: 8px;
+          }
+          .metric-box .value {
+            font-size: 32px;
+            font-weight: bold;
+          }
+          .emotions-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+          }
+          .emotion-item {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 15px;
+          }
+          .emotion-item .top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+          }
+          .emotion-item .name {
+            font-size: 14px;
+            color: #666;
+          }
+          .emotion-item .percent {
+            font-size: 18px;
+            font-weight: bold;
+          }
+          .emotion-bar {
+            background: #e5e7eb;
+            border-radius: 4px;
+            height: 8px;
+            overflow: hidden;
+          }
+          .emotion-bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s;
+          }
+          .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 2px solid #e5e7eb;
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+          }
+          .participants {
+            background: #f0fdf4;
+            border: 2px solid #86efac;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            margin-top: 15px;
+          }
+          @media print {
+            body { padding: 20px; }
+            .no-print { display: none; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="logo">🎯 SerenVoice</div>
+          <h1>Reporte de Análisis de Voz Grupal</h1>
+          <div class="meta">
+            <strong>Actividad:</strong> ${actividad.titulo}<br>
+            <strong>Grupo:</strong> ${actividad.nombre_grupo || 'N/A'}<br>
+            <strong>Fecha del reporte:</strong> ${fecha}
+          </div>
+        </div>
+
+        ${resultadoGrupal?.emocion_predominante ? `
+          <div class="section">
+            <div class="section-title">🎭 Emoción Predominante del Grupo</div>
+            <div class="emotion-main">
+              <div class="label">El grupo mostró principalmente</div>
+              <div class="value">${resultadoGrupal.emocion_predominante}</div>
+            </div>
+          </div>
+        ` : ''}
+
+        <div class="section">
+          <div class="section-title">💚 Indicadores Principales</div>
+          <div class="metrics-grid">
+            <div class="metric-box">
+              <div class="icon" style="color: #fb923c;">❤️</div>
+              <div class="label">Nivel de Estrés</div>
+              <div class="value" style="color: #fb923c;">${Math.round(resultadoGrupal?.promedio_estres || 0)}%</div>
+            </div>
+            <div class="metric-box">
+              <div class="icon" style="color: #f472b6;">🧠</div>
+              <div class="label">Nivel de Ansiedad</div>
+              <div class="value" style="color: #f472b6;">${Math.round(resultadoGrupal?.promedio_ansiedad || 0)}%</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">📊 Distribución Emocional del Grupo</div>
+          <div class="emotions-grid">
+            ${[
+              { label: 'Felicidad', value: resultadoGrupal?.promedio_felicidad || 0, color: '#4ade80' },
+              { label: 'Tristeza', value: resultadoGrupal?.promedio_tristeza || 0, color: '#60a5fa' },
+              { label: 'Enojo', value: resultadoGrupal?.promedio_enojo || 0, color: '#f87171' },
+              { label: 'Miedo', value: resultadoGrupal?.promedio_miedo || 0, color: '#a78bfa' },
+              { label: 'Sorpresa', value: resultadoGrupal?.promedio_sorpresa || 0, color: '#fbbf24' },
+              { label: 'Neutral', value: resultadoGrupal?.promedio_neutral || 0, color: '#94a3b8' }
+            ].map(item => `
+              <div class="emotion-item">
+                <div class="top">
+                  <span class="name">${item.label}</span>
+                  <span class="percent" style="color: ${item.color};">${Math.round(item.value)}%</span>
+                </div>
+                <div class="emotion-bar">
+                  <div class="emotion-bar-fill" style="width: ${item.value}%; background: ${item.color};"></div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+          
+          <div class="participants">
+            <strong>📊 Total de participantes analizados:</strong> ${resultadoGrupal?.total_participantes || 0}
+          </div>
+        </div>
+
+        <div class="footer">
+          <p><strong>SerenVoice</strong> - Plataforma de Análisis de Emociones por Voz</p>
+          <p>Este reporte fue generado automáticamente el ${fecha}</p>
+        </div>
+
+        <script>
+          window.onload = function() {
+            setTimeout(function() {
+              window.print();
+            }, 500);
+          };
+        </script>
+      </body>
+      </html>
+    `;
+    
+    ventanaImpresion.document.write(html);
+    ventanaImpresion.document.close();
+  };
 
   return (
     <div style={{ padding: '1.5rem' }}>
@@ -1174,7 +1449,7 @@ const TareaActivity = ({ actividad, onComplete, participacion }) => {
                         {p.nombre || 'Participante'} {esYo && '(Tú)'}
                       </span>
                     </div>
-                    {p.estado === 'completado' && p.resultado_analisis ? (
+                    {p.completada || p.estado === 'completado' ? (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: '#4caf50', fontSize: '0.8rem' }}>
                         <FaCheck size={12} />
                         <span>Completado</span>
@@ -1182,7 +1457,7 @@ const TareaActivity = ({ actividad, onComplete, participacion }) => {
                     ) : (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--color-text-secondary)', fontSize: '0.8rem' }}>
                         <FaClock size={12} />
-                        <span>Esperando...</span>
+                        <span>Pendiente</span>
                       </div>
                     )}
                   </div>
@@ -1250,7 +1525,9 @@ const TareaActivity = ({ actividad, onComplete, participacion }) => {
                     </>
                   ) : (
                     <p style={{ margin: 0, color: 'var(--color-text-secondary)', fontSize: '0.85rem', textAlign: 'center' }}>
-                      Aún no ha completado el análisis
+                      {p.completada || p.estado === 'completado' 
+                        ? 'Actividad completada sin análisis de voz' 
+                        : 'Aún no ha completado la actividad'}
                     </p>
                   )}
                 </div>
@@ -1291,6 +1568,34 @@ const TareaActivity = ({ actividad, onComplete, participacion }) => {
               <FaUsers style={{ color: 'var(--color-primary)', fontSize: '1.5rem' }} />
               <h4 style={{ margin: 0, color: '#fff' }}>Resultado Grupal</h4>
             </div>
+            <button
+              onClick={imprimirResultadoGrupal}
+              style={{
+                background: 'rgba(255, 255, 255, 0.1)',
+                border: '1px solid rgba(255, 255, 255, 0.3)',
+                borderRadius: '8px',
+                padding: '0.6rem 1.2rem',
+                color: '#fff',
+                cursor: 'pointer',
+                fontSize: '0.9rem',
+                fontWeight: '500',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                transition: 'all 0.3s',
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }}
+            >
+              <FaPrint />
+              Imprimir Reporte
+            </button>
           </div>
           
           {resultadoGrupal.emocion_predominante && (
@@ -1428,13 +1733,17 @@ export default function ActividadDetalle() {
       const data = await groupsService.obtenerActividad(actividadId);
       // El backend devuelve { actividad: {...}, participantes: [...] }
       // Extraemos solo el objeto actividad
-      setActividad(data?.actividad || data);
+      const actividadData = data?.actividad || data;
+      setActividad(actividadData);
       
       // Verificar mi participación
       try {
-        const part = await groupsService.obtenerMiParticipacion(actividadId);
-        setParticipacion(part?.participacion || null);
-      } catch {
+        const partResponse = await groupsService.obtenerMiParticipacion(actividadId);
+        console.log('📋 Mi participación:', partResponse);
+        const part = partResponse?.data || partResponse?.participacion || partResponse;
+        setParticipacion(part);
+      } catch (err) {
+        console.log('⚠️ No hay participación registrada:', err);
         setParticipacion(null);
       }
     } catch (e) {
@@ -1460,15 +1769,22 @@ export default function ActividadDetalle() {
   };
 
   const handleComplete = async (data) => {
-    if (!participacion) return;
+    if (!participacion || (!participacion.id_participacion && !participacion.id)) {
+      console.error('❌ No hay participación válida:', participacion);
+      setError('No se encontró la participación. Por favor, recarga la página.');
+      return;
+    }
     
+    // Usar id_participacion o id (el backend usa "id" en la tabla)
+    const participacionId = participacion.id_participacion || participacion.id;
+    console.log('📤 Completando participación:', participacionId, data);
     setCompleting(true);
     try {
-      await groupsService.completarParticipacion(participacion.id_participacion, data);
+      await groupsService.completarParticipacion(participacionId, data);
       await cargarActividad();
     } catch (e) {
-      console.error(e);
-      setError('Error al completar la actividad');
+      console.error('❌ Error al completar:', e);
+      setError(e.response?.data?.error || 'Error al completar la actividad');
     } finally {
       setCompleting(false);
     }

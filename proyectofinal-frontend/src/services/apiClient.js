@@ -19,7 +19,7 @@ const API_BASE_URL = deriveBaseUrl();
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: false,
-  timeout: 30000, // 30 segundos timeout
+  timeout: 120000, // 120 segundos (2 minutos) timeout - aumentado para análisis de audio
 });
 
 // ==============================
@@ -186,7 +186,9 @@ export const juegosAPI = {
         estado_antes: datos.estado_antes || 'neutral',
       });
       
-      const sesionId = sesionResponse.data?.data?.id_sesion || sesionResponse.data?.id_sesion;
+      // El backend devuelve sesion_id (no id_sesion)
+      const responseData = sesionResponse.data?.data || sesionResponse.data || {};
+      const sesionId = responseData.sesion_id || responseData.id_sesion;
       
       if (!sesionId) {
         console.warn("No se pudo obtener el ID de sesión, guardando puntuación sin sesión");

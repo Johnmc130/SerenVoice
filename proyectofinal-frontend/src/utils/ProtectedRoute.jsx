@@ -40,7 +40,14 @@ const ProtectedRoute = ({ children, requiredRole }) => {
   if (requiredRole) {
     const userRole = (user.role || '').toString().toLowerCase();
     const reqRole = (requiredRole || '').toString().toLowerCase();
-    if (userRole !== reqRole) {
+    
+    // Normalizar 'admin' y 'administrador' como equivalentes
+    const normalizeRole = (role) => {
+      if (role === 'admin' || role === 'administrador') return 'admin';
+      return role;
+    };
+    
+    if (normalizeRole(userRole) !== normalizeRole(reqRole)) {
       logger.debug(`[DEPURACIÓN] Rol incorrecto → redirigiendo a /`);
       return <Navigate to="/" replace />;
     }

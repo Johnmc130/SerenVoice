@@ -46,6 +46,7 @@ class AudioService {
         method: "POST",
         headers, // ❗ NO Content-Type
         body: formData,
+        signal: AbortSignal.timeout(120000), // 120 segundos (2 minutos) timeout para análisis de audio
       });
 
       if (!response.ok) {

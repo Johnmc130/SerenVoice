@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import groupsService from '../../services/groupsService';
 import { Link, useNavigate, useLocation, Navigate } from 'react-router-dom';
-import { FaUsers, FaEdit, FaTrash, FaPlus, FaSearch, FaArrowLeft } from 'react-icons/fa';
+import { FaUsers, FaEdit, FaTrash, FaPlus, FaSearch, FaArrowLeft, FaLock, FaCopy, FaCheck } from 'react-icons/fa';
 import authService from '../../services/authService';
 import '../../global.css';
 import PageCard from '../../components/Shared/PageCard';
@@ -15,9 +15,19 @@ export default function Grupos() {
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [copiedCode, setCopiedCode] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
   const userData = authService.getUser();
+
+  // Función para copiar código al portapapeles
+  const copiarCodigo = (codigo, gid, e) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(codigo).then(() => {
+      setCopiedCode(gid);
+      setTimeout(() => setCopiedCode(null), 2000);
+    });
+  };
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -194,6 +204,7 @@ export default function Grupos() {
                 const maxP = g.max_participantes || g.maxParticipantes || '—';
                 const miembros = g.total_miembros || g.miembros_activos || 0;
                 const rolGrupo = g.rol_grupo || g.role || 'participante';
+                const codigoAcceso = g.codigo_acceso || g.codigoAcceso || null;
                 
                 // Determinar si puede editar (facilitador o co_facilitador)
                 const esFacilitador = rolGrupo === 'facilitador' || 
@@ -282,6 +293,48 @@ export default function Grupos() {
                         <div style={{color:'var(--color-text-main)',fontWeight:'500'}}>{miembros} / {maxP}</div>
                       </div>
                     </div>
+
+                    {/* Código de acceso (solo para facilitadores) */}
+                    {puedeEditar && codigoAcceso && (
+                      <div style={{
+                        display:'flex',
+                        alignItems:'center',
+                        gap:'0.5rem',
+                        padding:'0.6rem 0.75rem',
+                        background:'rgba(0, 230, 118, 0.1)',
+                        borderRadius:'8px',
+                        border:'1px solid rgba(0, 230, 118, 0.3)'
+                      }} onClick={(e) => e.stopPropagation()}>
+                        <FaLock style={{color:'var(--color-primary)',fontSize:'0.85rem'}} />
+                        <span style={{color:'var(--color-text-secondary)',fontSize:'0.8rem'}}>Código:</span>
+                        <code style={{
+                          background:'var(--color-panel-solid)',
+                          padding:'2px 8px',
+                          borderRadius:'4px',
+                          fontWeight:'600',
+                          color:'var(--color-primary)',
+                          letterSpacing:'1px'
+                        }}>{codigoAcceso}</code>
+                        <button
+                          onClick={(e) => copiarCodigo(codigoAcceso, gid, e)}
+                          style={{
+                            marginLeft:'auto',
+                            padding:'4px 8px',
+                            borderRadius:'4px',
+                            border:'none',
+                            background: copiedCode === gid ? '#4caf50' : 'var(--color-primary)',
+                            color:'white',
+                            cursor:'pointer',
+                            display:'flex',
+                            alignItems:'center',
+                            gap:'0.25rem',
+                            fontSize:'0.75rem'
+                          }}
+                        >
+                          {copiedCode === gid ? <><FaCheck /> Copiado</> : <><FaCopy /> Copiar</>}
+                        </button>
+                      </div>
+                    )}
 
                     {/* Acciones */}
                     <div style={{display:'flex',gap:'0.5rem',marginTop:'auto',flexWrap:'wrap'}} onClick={(e) => e.stopPropagation()}>
