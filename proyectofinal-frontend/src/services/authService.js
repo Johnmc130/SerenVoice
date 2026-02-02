@@ -55,7 +55,14 @@ const authService = {
       return { token, refresh_token, user: userWithRole };
     } catch (error) {
       secureLogger.warn('Login fallido');
-      throw new Error(error.response?.data?.error || error.message);
+      // Crear error personalizado con toda la información del backend
+      const errorData = error.response?.data || {};
+      const errorObj = new Error(errorData.error || error.message);
+      errorObj.response = error.response; // Mantener respuesta completa
+      errorObj.attempts_left = errorData.attempts_left;
+      errorObj.blocked = errorData.blocked;
+      errorObj.remaining_time = errorData.remaining_time;
+      throw errorObj;
     }
   },
 

@@ -113,15 +113,25 @@ const Login = () => {
     } catch (err) {
       console.error("Error en login:", err);
       
-      // Verificar si hay información de bloqueo en la respuesta
-      const responseData = err.response?.data;
+      // Verificar si hay información de bloqueo (desde authService o response)
+      const responseData = err.response?.data || {};
+      const blocked = err.blocked || responseData.blocked;
+      const remaining_time = err.remaining_time || responseData.remaining_time;
+      const attempts_left = err.attempts_left ?? responseData.attempts_left;
       
-      if (responseData?.blocked || responseData?.remaining_time) {
+      if (blocked || remaining_time) {
         setBlockedUntil(true);
-        setCountdown(responseData.remaining_time || 900); // Default 15 min
-        setError(responseData.error || 'Demasiados intentos fallidos. Por favor espera.');
-      } else if (responseData?.attempts_left !== undefined && responseData.attempts_left <= 2) {
-        setError(`Credenciales incorrectas. Te quedan ${responseData.attempts_left} intento(s).`);
+        setCountdown(remaining_time || 900); // Default 15 min
+        setError(responseData.error || err.message || 'Demasiados intentos fallidos. Por favor espera.');
+      } else if (attempts_left !== undefined) {
+        // Mostrar intentos restantes en rojo si es crítico
+        if (attempts_left === 0) {
+          setError('❌ Cuenta bloqueada temporalmente. Espera 15 minutos.');
+        } else if (attempts_left <= 2) {
+          setError(`⚠️ Credenciales incorrectas. Te quedan ${attempts_left} intento(s) antes de ser bloqueado.`);
+        } else {
+          setError(`❌ Credenciales incorrectas. Te quedan ${attempts_left} intentos.`);
+        }
       } else if (err.message && err.message.includes("verifica tu correo")) {
         setError(
           "Tu cuenta no está verificada. Por favor, revisa tu correo electrónico y haz clic en el enlace de verificación."
@@ -362,7 +372,21 @@ const Login = () => {
 
             {/* Mensaje de error normal */}
             {error && !blockedUntil && (
-              <div className="error-message" style={{ marginBottom: "1rem" }}>
+              <div 
+                className="error-message" 
+                style={{ 
+                  marginBottom: "1rem",
+                  padding: "1rem",
+                  borderRadius: "8px",
+                  fontSize: "1rem",
+                  fontWeight: "500",
+                  backgroundColor: error.includes('quedan') ? 'rgba(255, 152, 0, 0.1)' : 'rgba(238, 90, 90, 0.1)',
+                  border: error.includes('quedan') ? '2px solid rgba(255, 152, 0, 0.5)' : '2px solid rgba(238, 90, 90, 0.5)',
+                  color: error.includes('quedan') ? '#ff9800' : '#ee5a5a',
+                  animation: 'fadeIn 0.3s ease-in',
+                  textAlign: 'center'
+                }}
+              >
                 {error}
               </div>
             )}
