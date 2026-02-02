@@ -523,16 +523,22 @@ def calcular_resultado_grupal(cursor, conn, actividad_id):
         cursor.execute("""
             INSERT INTO resultado_actividad_grupal
             (id_actividad, emocion_dominante, nivel_estres_promedio, nivel_ansiedad_promedio,
-             confianza_promedio, emociones_promedio_json, total_participantes, fecha_calculo)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, NOW())
+             confianza_promedio, emociones_promedio, fecha_calculo)
+            VALUES (%s, %s, %s, %s, %s, %s, NOW())
+            ON DUPLICATE KEY UPDATE
+                emocion_dominante = VALUES(emocion_dominante),
+                nivel_estres_promedio = VALUES(nivel_estres_promedio),
+                nivel_ansiedad_promedio = VALUES(nivel_ansiedad_promedio),
+                confianza_promedio = VALUES(confianza_promedio),
+                emociones_promedio = VALUES(emociones_promedio),
+                fecha_calculo = NOW()
         """, (
             actividad_id,
             emocion_dominante,
             promedio_estres,
             promedio_ansiedad,
             promedio_confianza,
-            json.dumps(emociones_promedio),
-            len(analisis_list)
+            json.dumps(emociones_promedio)
         ))
         
         resultado_id = cursor.lastrowid
@@ -663,10 +669,12 @@ def obtener_resultado(actividad_id):
             resultado['nivel_ansiedad_promedio'] = float(resultado.get('nivel_ansiedad_promedio', 0))
             resultado['confianza_promedio'] = float(resultado.get('confianza_promedio', 0))
         
-        # Parsear JSONs
-        if resultado.get('emociones_promedio_json'):
+        # Parsear JSON de emociones promedio
+        if resultado and resultado.get('emociones_promedio'):
             try:
-                resultado['emociones_promedio'] = json.loads(resultado['emociones_promedio_json'])
+                # Si es string, parsear; si ya es dict, dejar como está
+                if isinstance(resultado['emociones_promedio'], str):
+                    resultado['emociones_promedio'] = json.loads(resultado['emociones_promedio'])
             except:
                 resultado['emociones_promedio'] = {}
         
