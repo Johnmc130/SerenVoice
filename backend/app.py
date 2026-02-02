@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# BUILD_VERSION: 2026-02-02-v2 - Force Cloud Run redeploy
+# BUILD_VERSION: 2026-02-02-v3 - Login attempts fix deployed
 from flask import Flask, jsonify, send_from_directory, request, g
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
