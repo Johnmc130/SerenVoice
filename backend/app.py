@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# BUILD_VERSION: 2026-02-02-v2 - Force Cloud Run redeploy
 from flask import Flask, jsonify, send_from_directory, request, g
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
@@ -6,6 +7,7 @@ from flasgger import Swagger
 import os
 import sys
 import io
+from datetime import datetime
 
 # ============================================
 # CONFIGURAR UTF-8 PARA WINDOWS
@@ -16,6 +18,8 @@ if sys.platform == "win32":
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
     # Configurar variable de entorno
     os.environ['PYTHONIOENCODING'] = 'utf-8'
+
+print(f"[STARTUP] SerenVoice Backend iniciando - {datetime.now().isoformat()}")
 
 from database.config import Config
 from database.connection import DatabaseConnection
