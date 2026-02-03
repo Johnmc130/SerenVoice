@@ -641,10 +641,10 @@ def login():
             print("❌ Usuario no encontrado")
             # Registrar intento fallido
             attempt_result = LoginAttemptsService.record_failed_attempt(correo, client_ip)
-            error_msg = 'Credenciales incorrectas'
             if attempt_result['blocked']:
                 error_msg = f'Demasiados intentos fallidos. Cuenta bloqueada por {attempt_result["block_duration"]} minutos.'
-            elif attempt_result['attempts_left'] <= 2:
+            else:
+                # SIEMPRE mostrar intentos restantes
                 error_msg = f'Credenciales incorrectas. Te quedan {attempt_result["attempts_left"]} intentos.'
             return jsonify({
                 'success': False, 
@@ -731,10 +731,10 @@ def login():
             print("❌ Contraseña incorrecta")
             # Registrar intento fallido
             attempt_result = LoginAttemptsService.record_failed_attempt(correo, client_ip)
-            error_msg = 'Credenciales incorrectas'
             if attempt_result['blocked']:
                 error_msg = f'Demasiados intentos fallidos. Cuenta bloqueada por {attempt_result["block_duration"]} minutos.'
-            elif attempt_result['attempts_left'] <= 2:
+            else:
+                # SIEMPRE mostrar intentos restantes
                 error_msg = f'Credenciales incorrectas. Te quedan {attempt_result["attempts_left"]} intentos.'
             return jsonify({
                 'success': False, 

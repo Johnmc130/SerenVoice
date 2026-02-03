@@ -128,18 +128,16 @@ def create_app():
         print("[SECURITY] Rate Limiting deshabilitado")
 
     # ===============================
-    # ✅ CORS SEGURO (NO WILDCARD)
+    # ✅ CORS - PERMITIR TODOS LOS ORÍGENES
     # ===============================
-    cors_config = get_cors_config()
     CORS(
         app,
-        resources={
-            r"/api/*": cors_config,
-            r"/juegos/*": cors_config,
-            r"/grupos*": cors_config
-        }
+        resources={r"/*": {"origins": "*"}},
+        supports_credentials=False,
+        allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
+        methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
     )
-    print(f"[SECURITY] CORS configurado para: {cors_config['origins'][:3]}...")
+    print("[SECURITY] CORS configurado para TODOS los orígenes")
 
     # ===============================
     # ✅ SECURITY HEADERS & REQUEST TRACKING

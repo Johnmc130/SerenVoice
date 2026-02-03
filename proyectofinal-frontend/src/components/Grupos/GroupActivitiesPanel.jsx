@@ -618,9 +618,6 @@ export default function GroupActivitiesPanel({ grupoId, onQueueAdd, onQueueUpdat
                     style={inputStyle}
                   >
                     <option value="tarea">📋 Tarea</option>
-                    <option value="juego_grupal">🎮 Juego Grupal</option>
-                    <option value="ejercicio_respiracion">🌬️ Ejercicio Respiración</option>
-                    <option value="meditacion_guiada">🧘 Meditación Guiada</option>
                     <option value="reflexion">💭 Reflexión</option>
                     <option value="otro">📌 Otro</option>
                   </select>
