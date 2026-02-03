@@ -1054,6 +1054,30 @@ def agregar_participante(actividad_id):
         """, (actividad_id, id_usuario))
         
         conn.commit()
+        
+        # 📬 ENVIAR NOTIFICACIÓN AL USUARIO AGREGADO
+        try:
+            cursor.execute("""
+                INSERT INTO notificaciones 
+                (id_usuario, tipo_notificacion, titulo, mensaje, prioridad, 
+                 url_accion, id_referencia, tipo_referencia, leida, fecha_creacion)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, FALSE, NOW())
+            """, (
+                id_usuario,
+                'invitacion_grupo',
+                'Invitación a actividad grupal',
+                f"Fuiste invitado a participar en la actividad: {actividad['titulo']}",
+                'media',
+                f'/actividades/grupo/{actividad_id}',
+                actividad_id,
+                'actividad'
+            ))
+            conn.commit()
+            print(f"📬 Notificación enviada al usuario {id_usuario}")
+        except Exception as notif_error:
+            print(f"⚠️ Error al enviar notificación: {notif_error}")
+            # No fallar si falla la notificación
+        
         cursor.close()
         DatabaseConnection.return_connection(conn)
         
