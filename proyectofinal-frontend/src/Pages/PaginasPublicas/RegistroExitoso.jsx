@@ -63,9 +63,8 @@ const RegistroExitoso = () => {
             <p style={{ marginTop: "1rem" }}>
               Tu cuenta ha sido creada exitosamente.
             </p>
-            <p style={{ color: "var(--color-warning)", marginTop: "1rem", marginBottom: "1rem" }}>
-              <strong>Importante:</strong> No se pudo enviar el correo de verificación.
-              Por favor, contacta al administrador para activar tu cuenta.
+            <p style={{ color: "var(--color-text-secondary)", marginTop: "1rem", marginBottom: "1rem" }}>
+              Ya puedes iniciar sesión con tu correo y contraseña.
             </p>
             
             <Link to="/login" style={{ display: "block" }}>

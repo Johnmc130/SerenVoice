@@ -10,6 +10,7 @@ class NotificacionesService:
                           id_referencia=None, tipo_referencia=None):
         """
         Crear una nueva notificación para un usuario
+        Columnas de tabla: id_notificacion, id_usuario, tipo, titulo, mensaje, leida, fecha_creacion, metadata, url_accion
         """
         try:
             conn = DatabaseConnection.get_connection()
@@ -21,23 +22,28 @@ class NotificacionesService:
             print(f"   Tipo: {tipo_notificacion}")
             print(f"   Título: {titulo}")
             print(f"   Mensaje: {mensaje}")
-            print(f"   Prioridad: {prioridad}")
+            print(f"   URL Acción: {url_accion}")
             print(f"{'='*50}\n")
+            
+            # Guardar prioridad, id_referencia y tipo_referencia en metadata JSON
+            import json
+            metadata = json.dumps({
+                'prioridad': prioridad,
+                'id_referencia': id_referencia,
+                'tipo_referencia': tipo_referencia
+            }) if any([prioridad, id_referencia, tipo_referencia]) else None
             
             cursor.execute("""
                 INSERT INTO notificaciones 
-                (id_usuario, tipo_notificacion, titulo, mensaje, prioridad, 
-                 url_accion, id_referencia, tipo_referencia, leida, fecha_creacion)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, FALSE, NOW())
+                (id_usuario, tipo, titulo, mensaje, url_accion, metadata, leida, fecha_creacion)
+                VALUES (%s, %s, %s, %s, %s, %s, FALSE, NOW())
             """, (
                 id_usuario, 
-                tipo_notificacion, 
+                tipo_notificacion,  # Se guarda en columna 'tipo'
                 titulo, 
                 mensaje, 
-                prioridad,
                 url_accion,
-                id_referencia,
-                tipo_referencia
+                metadata
             ))
             
             conn.commit()

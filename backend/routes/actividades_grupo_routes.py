@@ -1057,20 +1057,23 @@ def agregar_participante(actividad_id):
         
         # 📬 ENVIAR NOTIFICACIÓN AL USUARIO AGREGADO
         try:
+            import json
+            metadata = json.dumps({
+                'prioridad': 'media',
+                'id_referencia': actividad_id,
+                'tipo_referencia': 'actividad'
+            })
             cursor.execute("""
                 INSERT INTO notificaciones 
-                (id_usuario, tipo_notificacion, titulo, mensaje, prioridad, 
-                 url_accion, id_referencia, tipo_referencia, leida, fecha_creacion)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, FALSE, NOW())
+                (id_usuario, tipo, titulo, mensaje, url_accion, metadata, leida, fecha_creacion)
+                VALUES (%s, %s, %s, %s, %s, %s, FALSE, NOW())
             """, (
                 id_usuario,
                 'invitacion_grupo',
                 'Invitación a actividad grupal',
                 f"Fuiste invitado a participar en la actividad: {actividad['titulo']}",
-                'media',
                 f'/actividades/grupo/{actividad_id}',
-                actividad_id,
-                'actividad'
+                metadata
             ))
             conn.commit()
             print(f"📬 Notificación enviada al usuario {id_usuario}")
