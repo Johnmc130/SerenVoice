@@ -22,11 +22,13 @@ const authService = {
     }
 
     try {
+      // Usar skipAuthRedirect para que el interceptor NO redirija en caso de 401
+      // (credenciales incorrectas deben mostrar error, no recargar página)
       const response = await apiClient.post(api.endpoints.auth.login, { 
         correo: sanitizedEmail, 
         contrasena: password, // No sanitizar contraseñas
         recordarme: recordarme // Enviar parámetro de recordar sesión
-      });
+      }, { skipAuthRedirect: true });
       
       if (!response.data.success) throw new Error(response.data.error || "Credenciales incorrectas");
 

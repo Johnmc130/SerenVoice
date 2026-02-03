@@ -34,7 +34,14 @@ class Grupo:
     @staticmethod
     def get_by_id(id_grupo):
         """Obtener grupo por ID"""
-        query = "SELECT * FROM grupos WHERE id_grupo = %s AND activo = 1"
+        query = """
+            SELECT g.*, g.id_creador AS id_facilitador,
+                   g.codigo_invitacion AS codigo_acceso,
+                   CASE WHEN g.es_privado = 1 THEN 'privado' ELSE 'publico' END AS privacidad,
+                   g.max_miembros AS max_participantes
+            FROM grupos g
+            WHERE g.id_grupo = %s AND g.activo = 1
+        """
         results = DatabaseConnection.execute_query(query, (id_grupo,))
         return results[0] if results else None
     

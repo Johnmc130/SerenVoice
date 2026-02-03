@@ -105,7 +105,6 @@ const SidebarAdmin = ({ isCollapsed, onToggle, isMobileOpen }) => {
       icon: <FaChartBar />,
       label: "Reportes",
       items: [
-        { to: "/admin/reportes", label: "Reportes Generales" },
         { to: "/admin/analisis", label: "Análisis Emocional", icon: <FaBrain /> },
         { to: "/admin/auditoria", label: "Auditoría", icon: <FaHistory /> },
       ],

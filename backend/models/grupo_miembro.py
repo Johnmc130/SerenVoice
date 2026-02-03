@@ -60,6 +60,7 @@ class GrupoMiembro:
                 g.nombre_grupo,
                 g.descripcion,
                 g.id_creador,
+                g.id_creador AS id_facilitador,
                 g.codigo_invitacion as codigo_acceso,
                 g.es_privado,
                 g.max_miembros as max_participantes,
