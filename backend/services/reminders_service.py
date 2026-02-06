@@ -5,8 +5,8 @@ Servicio de Reminders para SerenVoice
 - Recordatorios de actividades próximas a vencer
 - Recordatorios de sesiones grupales activas
 """
-from database.connection import DatabaseConnection
-from services.notificaciones_service import NotificacionesService
+from backend.database.connection import DatabaseConnection
+from backend.services.notificaciones_service import NotificacionesService
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 import logging

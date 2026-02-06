@@ -23,8 +23,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Instalar gunicorn para producción
 RUN pip install gunicorn
 
-# Copiar código directamente a /app
-COPY . .
+# Copiar código a /app/backend para mantener estructura de imports "from backend.xxx"
+COPY . ./backend/
 
 # Crear directorio uploads
 RUN mkdir -p /app/uploads
@@ -34,5 +34,5 @@ ENV PORT=5000
 ENV PYTHONPATH=/app
 EXPOSE 5000
 
-# Ejecutar con gunicorn - app.py está en /app/app.py
-CMD exec gunicorn --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 300 app:app
+# Ejecutar con gunicorn - módulo backend.app
+CMD exec gunicorn --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 300 backend.app:app

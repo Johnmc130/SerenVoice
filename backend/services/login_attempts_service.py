@@ -3,7 +3,7 @@
 Servicio para gestionar los intentos de inicio de sesión y bloqueo temporal.
 """
 from datetime import datetime, timedelta
-from database.connection import DatabaseConnection
+from backend.database.connection import DatabaseConnection
 
 
 class LoginAttemptsService:

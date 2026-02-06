@@ -21,14 +21,14 @@ if sys.platform == "win32":
 
 print(f"[STARTUP] SerenVoice Backend iniciando - {datetime.now().isoformat()}")
 
-from database.config import Config
-from database.connection import DatabaseConnection
-from services.audio_service import AudioService
+from backend.database.config import Config
+from backend.database.connection import DatabaseConnection
+from backend.services.audio_service import AudioService
 
 # ============================================
 # MIDDLEWARE DE SEGURIDAD
 # ============================================
-from utils.security_middleware import (
+from backend.utils.security_middleware import (
     limiter,
     add_security_headers,
     get_cors_config,
@@ -54,7 +54,7 @@ except Exception:
 # EXTENSIONES SQL (OPCIONAL)
 # ===============================
 try:
-    from extensions import db, jwt as sql_jwt
+    from backend.extensions import db, jwt as sql_jwt
     HAS_SQL_EXTENSIONS = True
 except Exception:
     HAS_SQL_EXTENSIONS = False
@@ -62,25 +62,25 @@ except Exception:
 # ===============================
 # BLUEPRINTS
 # ===============================
-from routes.contact_routes import bp as contact_bp
-from routes.auth_routes import bp as auth_bp
-from routes.usuario_routes import bp as usuarios_bp
-from routes.admin_routes import bp as admin_bp
-from routes.audio_routes import bp as audio_bp
-from routes.analisis_routes import bp as analisis_bp
+from backend.routes.contact_routes import bp as contact_bp
+from backend.routes.auth_routes import bp as auth_bp
+from backend.routes.usuario_routes import bp as usuarios_bp
+from backend.routes.admin_routes import bp as admin_bp
+from backend.routes.audio_routes import bp as audio_bp
+from backend.routes.analisis_routes import bp as analisis_bp
 
-from routes.sesion_routes import bp as sesion_bp
-from routes.roles_routes import bp as roles_bp
-from routes.resultados_routes import bp as resultados_bp
-from routes.reportes_routes import bp as reportes_bp
-from routes.recomendaciones_routes import bp as recomendaciones_bp
-from routes.alertas_routes import bp as alertas_bp
-from routes.notificaciones_routes import bp as notificaciones_bp
+from backend.routes.sesion_routes import bp as sesion_bp
+from backend.routes.roles_routes import bp as roles_bp
+from backend.routes.resultados_routes import bp as resultados_bp
+from backend.routes.reportes_routes import bp as reportes_bp
+from backend.routes.recomendaciones_routes import bp as recomendaciones_bp
+from backend.routes.alertas_routes import bp as alertas_bp
+from backend.routes.notificaciones_routes import bp as notificaciones_bp
 
 # Actividades de grupo (opcional)
 try:
-    from routes.actividades_grupo_routes import bp as actividades_grupo_bp
-    from routes.actividades_grupo_v2_routes import bp as actividades_grupo_v2_bp
+    from backend.routes.actividades_grupo_routes import bp as actividades_grupo_bp
+    from backend.routes.actividades_grupo_v2_routes import bp as actividades_grupo_v2_bp
     HAS_ACTIVIDADES = True
 except Exception:
     actividades_grupo_bp = None
@@ -91,7 +91,7 @@ except Exception:
 # JUEGOS (OPCIONAL)
 # ===============================
 try:
-    from routes.juegos_routes import juegos_bp
+    from backend.routes.juegos_routes import juegos_bp
     HAS_JUEGOS = True
 except Exception:
     juegos_bp = None

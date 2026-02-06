@@ -3,8 +3,8 @@ import joblib
 import os
 import json
 from datetime import datetime
-from utils.audio_processor import AudioProcessor
-from utils.feature_extractor import FeatureExtractor
+from backend.utils.audio_processor import AudioProcessor
+from backend.utils.feature_extractor import FeatureExtractor
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split

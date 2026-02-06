@@ -1,6 +1,6 @@
 # backend/models/invitacion_grupo.py
 """Modelo para la tabla invitacion_grupo - Sistema de invitaciones a grupos"""
-from database.connection import DatabaseConnection
+from backend.database.connection import DatabaseConnection
 from datetime import datetime, timedelta
 
 
