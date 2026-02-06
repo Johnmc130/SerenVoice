@@ -43,8 +43,8 @@ services:
   # Backend Flask
   flask_backend:
     build:
-      context: .
-      dockerfile: ./backend/Dockerfile
+      context: ./backend
+      dockerfile: Dockerfile
     container_name: flask_backend
     env_file:
       - .env
@@ -70,7 +70,6 @@ services:
     networks:
       - app_network
     restart: unless-stopped
-    command: python backend/app.py
     logging:
       driver: gcplogs
       options:

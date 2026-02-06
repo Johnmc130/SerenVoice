@@ -23,25 +23,16 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Instalar gunicorn para producción
 RUN pip install gunicorn
 
-# Copiar todo el código a /app/backend para mantener estructura de imports
-COPY . ./backend/
-
-# Crear symlinks para que los imports funcionen desde ambas rutas
-RUN ln -s /app/backend/app.py /app/app.py && \
-    ln -s /app/backend/database /app/database && \
-    ln -s /app/backend/models /app/models && \
-    ln -s /app/backend/routes /app/routes && \
-    ln -s /app/backend/services /app/services && \
-    ln -s /app/backend/utils /app/utils && \
-    ln -s /app/backend/extensions.py /app/extensions.py
+# Copiar todo el código
+COPY . .
 
 # Crear directorio uploads
-RUN mkdir -p /app/backend/uploads /app/uploads
+RUN mkdir -p /app/uploads
 
-# Puerto que usa Cloud Run
-ENV PORT=8080
-ENV PYTHONPATH=/app:/app/backend
-EXPOSE 8080
+# Puerto para producción
+ENV PORT=5000
+ENV PYTHONPATH=/app
+EXPOSE 5000
 
-# Ejecutar con gunicorn
-CMD exec gunicorn --bind :$PORT --workers 1 --threads 8 --timeout 300 app:app
+# Ejecutar con gunicorn (ajustar workers según necesidad)
+CMD exec gunicorn --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 300 app:app
