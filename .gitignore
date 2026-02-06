@@ -38,3 +38,6 @@ proyectofinal-mobile/node_modules/
 #env
 *.env
 .env
+
+#venv
+venv/gcp-key.json
