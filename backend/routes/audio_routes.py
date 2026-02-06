@@ -320,7 +320,7 @@ def analyze_voice():
         clean_recs = []
         if user_id:
             try:
-                from services.recomendaciones_ia import generar_recomendaciones
+                from backend.services.recomendaciones_ia import generar_recomendaciones
                 print('[audio_routes] Generando recomendaciones IA con Groq ANTES de guardar...')
                 
                 resultado_ctx = {
@@ -370,7 +370,7 @@ def analyze_voice():
                 print(f'[audio_routes] Guardando audio en BD para user_id={user_id}')
                 
                 # Usar el modelo Audio actualizado que ahora soporta emociones
-                from models.audio import Audio
+                from backend.models.audio import Audio
                 
                 audio_db_id = Audio.create(
                     id_usuario=user_id,
@@ -394,7 +394,7 @@ def analyze_voice():
                 print(f"[audio_routes] Audio guardado en BD con ID {audio_db_id} (CON emociones)")
                 
                 # Crear registro de análisis
-                from models.analisis import Analisis
+                from backend.models.analisis import Analisis
                 analisis_id = Analisis.create(
                     id_audio=audio_db_id,
                     id_usuario=user_id,
@@ -412,7 +412,7 @@ def analyze_voice():
                 print(f'[audio_routes] Análisis creado con ID: {analisis_id}')
 
                 # Crear resultado del análisis con todos los niveles emocionales
-                from models.resultado_analisis import ResultadoAnalisis
+                from backend.models.resultado_analisis import ResultadoAnalisis
                 resultado_id = ResultadoAnalisis.create(
                     id_analisis=analisis_id,
                     nivel_estres=round(nivel_estres, 2),
@@ -435,14 +435,14 @@ def analyze_voice():
 
                 # Guardar recomendaciones en BD (ya fueron generadas y validadas antes)
                 try:
-                    from services.recomendaciones_ia import guardar_en_bd
+                    from backend.services.recomendaciones_ia import guardar_en_bd
                     TIPOS_VALIDOS = {"respiracion", "pausa_activa", "meditacion", "ejercicio", "profesional", "musica"}
                     
                     count = guardar_en_bd(resultado_id, clean_recs, user_id=user_id)
                     print(f'[audio_routes] {count} recomendaciones IA persistidas en BD.')
                     
                     # Leer desde BD para respuesta
-                    from models.recomendacion import Recomendacion as _Rec
+                    from backend.models.recomendacion import Recomendacion as _Rec
                     guardadas = _Rec.get_by_result(resultado_id) or []
                     print(f'[audio_routes] Leidas {len(guardadas)} recomendaciones desde BD para resultado_id={resultado_id}')
                     
@@ -486,7 +486,7 @@ def analyze_voice():
 
                 # Generar alerta si la clasificación es alta
                 if clasificacion in ('alto', 'muy_alto'):
-                    from models.alerta_analisis import AlertaAnalisis
+                    from backend.models.alerta_analisis import AlertaAnalisis
                     alerta_tipo = 'riesgo'
                     descripcion = (
                         f'Niveles elevados detectados: estrés={round(nivel_estres,2)}%, '

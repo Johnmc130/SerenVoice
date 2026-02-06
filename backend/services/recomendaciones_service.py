@@ -29,7 +29,7 @@ class RecomendacionesService:
         Returns:
             list: Lista de recomendaciones del usuario
         """
-        from database.connection import DatabaseConnection
+        from backend.database.connection import DatabaseConnection
         
         query = """
             SELECT r.*, ra.nivel_estres, ra.nivel_ansiedad, a.fecha_analisis
@@ -56,7 +56,7 @@ class RecomendacionesService:
         Returns:
             list: Recomendaciones del tipo especificado
         """
-        from database.connection import DatabaseConnection
+        from backend.database.connection import DatabaseConnection
         
         query = """
             SELECT r.*, ra.nivel_estres, ra.nivel_ansiedad
@@ -110,7 +110,7 @@ class RecomendacionesService:
         Returns:
             list: Recomendaciones recientes
         """
-        from database.connection import DatabaseConnection
+        from backend.database.connection import DatabaseConnection
         
         query = """
             SELECT r.*, ra.nivel_estres, ra.nivel_ansiedad, a.fecha_analisis
@@ -136,7 +136,7 @@ class RecomendacionesService:
         Returns:
             dict: Estadísticas de recomendaciones
         """
-        from database.connection import DatabaseConnection
+        from backend.database.connection import DatabaseConnection
         
         query = """
             SELECT 

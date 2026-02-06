@@ -302,10 +302,10 @@ def procesar_audio_participacion(id_sesion: int, user_id: int, audio_file):
     Procesa un archivo de audio para la participación en sesión grupal.
     Guarda el audio, lo analiza y registra la participación.
     """
-    from services.audio_service import AudioService
-    from models.audio import Audio
-    from models.analisis import Analisis
-    from models.resultado_analisis import ResultadoAnalisis
+    from backend.services.audio_service import AudioService
+    from backend.models.audio import Audio
+    from backend.models.analisis import Analisis
+    from backend.models.resultado_analisis import ResultadoAnalisis
     
     try:
         # Verificar acceso a la sesión
@@ -570,7 +570,7 @@ def get_mi_participacion(id_sesion):
         # Si tiene análisis, obtener el resultado
         resultado = None
         if participacion.get('id_analisis'):
-            from models.resultado_analisis import ResultadoAnalisis
+            from backend.models.resultado_analisis import ResultadoAnalisis
             resultado = ResultadoAnalisis.get_by_analysis(participacion['id_analisis'])
         
         return jsonify({

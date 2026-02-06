@@ -7,7 +7,7 @@ print("[DEBUG] juegos_routes.py - Inicio de carga del módulo")
 
 # Intentar importar modelos y extensiones
 try:
-    from models.juego_model import JuegoTerapeutico, SesionJuego
+    from backend.models.juego_model import JuegoTerapeutico, SesionJuego
     print("[DEBUG] OK - Modelos JuegoTerapeutico y SesionJuego importados")
     HAS_MODELS = True
 except ImportError as e:

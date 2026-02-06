@@ -147,7 +147,7 @@ class RolesService:
         Returns:
             dict: Estadísticas de roles
         """
-        from database.connection import DatabaseConnection
+        from backend.database.connection import DatabaseConnection
         
         query = """
             SELECT r.nombre_rol, r.descripcion, COUNT(ru.id_usuario) as total_usuarios

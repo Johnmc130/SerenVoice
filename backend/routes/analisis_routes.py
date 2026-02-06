@@ -13,8 +13,8 @@ bp = Blueprint('analisis', __name__, url_prefix='/api/analisis')
 @jwt_required()
 def get_analisis(id_analisis):
     """Obtener detalle de un análisis"""
-    from models.audio import Audio
-    from models.analisis import Analisis
+    from backend.models.audio import Audio
+    from backend.models.analisis import Analisis
     
     user_id = get_jwt_identity()
     try:

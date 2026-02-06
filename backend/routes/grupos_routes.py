@@ -30,7 +30,7 @@ def get_public_groups():
             current_user_id = identity.get('id_usuario') if isinstance(identity, dict) else identity
 
         # Obtener grupos públicos
-        from database.connection import DatabaseConnection
+        from backend.database.connection import DatabaseConnection
         
         query = """
             SELECT g.*, 
@@ -700,7 +700,7 @@ def get_group_stats(id_grupo):
 def get_global_group_stats():
     """Obtener lista de grupos con estadísticas para administración"""
     try:
-        from database.connection import DatabaseConnection
+        from backend.database.connection import DatabaseConnection
         
         # Usar la vista que ya existe en la base de datos
         query = "SELECT * FROM vista_grupos_estadisticas ORDER BY fecha_creacion DESC"

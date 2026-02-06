@@ -49,7 +49,7 @@ class Seguridad:
         Returns:
             Tuple[bool, str]: (es_valida, mensaje)
         """
-        from database.config import Config
+        from backend.database.config import Config
         
         errors = []
         
@@ -94,7 +94,7 @@ class Seguridad:
         Retorna los requisitos de contraseña actuales.
         Útil para mostrar al usuario las reglas.
         """
-        from database.config import Config
+        from backend.database.config import Config
         
         return {
             "min_length": Config.PASSWORD_MIN_LENGTH,
@@ -223,11 +223,11 @@ def role_required(required_role):
     def decorator(fn):
         @wraps(fn)
         def wrapper(*args, **kwargs):
-            from utils.security_middleware import secure_log
+            from backend.utils.security_middleware import secure_log
             
             try:
                 # Importación local para evitar dependencias circulares
-                from services.usuario_service import UsuarioService
+                from backend.services.usuario_service import UsuarioService
                 
                 # Obtener el ID del usuario del token JWT
                 current_user_id = get_jwt_identity()

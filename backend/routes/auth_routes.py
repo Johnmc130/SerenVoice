@@ -238,7 +238,7 @@ def register():
                     print(f"[REGISTRO] Extensión de archivo no permitida: {extension}")
             
             # Generar token de verificación
-            from services.email_service import email_service
+            from backend.services.email_service import email_service
             token_verificacion = email_service.generar_token()
             token_expiracion = email_service.calcular_expiracion(24)  # 24 horas
             
@@ -272,7 +272,7 @@ def register():
         email_enviado = False
         if not viene_desde_movil:
             try:
-                from services.email_service import email_service
+                from backend.services.email_service import email_service
                 email_enviado = email_service.enviar_email_verificacion(correo, nombres, token_verificacion)
                 if email_enviado:
                     print(f"[REGISTRO] Email de verificación enviado a {correo}")
@@ -565,7 +565,7 @@ def login():
     """Login con soporte dual de hash y límite de intentos"""
     import traceback
     import hashlib
-    from services.login_attempts_service import LoginAttemptsService
+    from backend.services.login_attempts_service import LoginAttemptsService
     
     client_ip = request.remote_addr
     user_agent = request.headers.get('User-Agent', '')
@@ -1063,7 +1063,7 @@ def google_auth():
         print(f"[GOOGLE AUTH] Login exitoso para: {email}")
         # Crear registro de sesión (metadatos del cliente)
         try:
-            from models.sesion import Sesion
+            from backend.models.sesion import Sesion
 
             xfwd = request.headers.get('X-Forwarded-For', '')
             if xfwd:
@@ -1273,7 +1273,7 @@ def google_web_auth():
         
         # Crear sesión
         try:
-            from models.sesion import Sesion
+            from backend.models.sesion import Sesion
             import re
             from datetime import datetime
             
@@ -1414,7 +1414,7 @@ def verify_token():
 def verify_email(token):
     """Verificar email con token"""
     try:
-        from database.connection import DatabaseConnection
+        from backend.database.connection import DatabaseConnection
         from datetime import datetime
         
         with DatabaseConnection.get_connection() as conn:
@@ -1474,8 +1474,8 @@ def verify_email(token):
 def resend_verification():
     """Reenviar email de verificación"""
     try:
-        from database.connection import DatabaseConnection
-        from services.email_service import email_service
+        from backend.database.connection import DatabaseConnection
+        from backend.services.email_service import email_service
         
         user_id = get_jwt_identity()
         
@@ -1536,8 +1536,8 @@ def resend_verification():
 def resend_verification_public():
     """Reenviar email de verificación sin autenticación (para pantalla de verificación)"""
     try:
-        from database.connection import DatabaseConnection
-        from services.email_service import email_service
+        from backend.database.connection import DatabaseConnection
+        from backend.services.email_service import email_service
         
         data = request.get_json()
         correo = data.get('correo', '').lower().strip() if data else None
@@ -1607,8 +1607,8 @@ def resend_verification_public():
 def forgot_password():
     """Solicitar recuperación de contraseña"""
     try:
-        from database.connection import DatabaseConnection
-        from services.email_service import email_service
+        from backend.database.connection import DatabaseConnection
+        from backend.services.email_service import email_service
         
         data = request.get_json()
         correo = data.get('correo', '').lower().strip()
@@ -1684,7 +1684,7 @@ def forgot_password():
 def reset_password():
     """Restablecer contraseña con token"""
     try:
-        from database.connection import DatabaseConnection
+        from backend.database.connection import DatabaseConnection
         from datetime import datetime
         
         data = request.get_json()

@@ -322,7 +322,7 @@ def get_mi_reporte_completo():
     Obtener reporte completo del usuario actual con todas las estadísticas.
     Incluye: emociones, tendencias, actividad, juegos, grupos, etc.
     """
-    from services.resultados_service import ResultadosService
+    from backend.services.resultados_service import ResultadosService
     
     user_id = get_jwt_identity()
     
