@@ -1,14 +1,14 @@
 // src/config/api.js
 // En desarrollo, usar rutas relativas para que el proxy de Vite maneje las peticiones
-// En producción, usar la URL completa del backend
+// En producción con Nginx proxy, también usar rutas relativas
 
 const isDevelopment = import.meta.env.DEV;
-const RAW_API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const RAW_API_URL = import.meta.env.VITE_API_URL || "";
 const normalize = (u) => u.replace(/\/+$/, "");
 
-// En desarrollo usamos rutas relativas (/api) para que Vite proxy las peticiones
-// Esto evita problemas de CORS y redirecciones HTTPS del navegador
-const API_BASE = isDevelopment ? "/api" : `${normalize(RAW_API_URL)}/api`;
+// Usar rutas relativas (/api) cuando no hay VITE_API_URL definida
+// Nginx actúa como proxy reverso en producción
+const API_BASE = RAW_API_URL ? `${normalize(RAW_API_URL)}/api` : "/api";
 
 // ID de Cliente de Google OAuth
 export const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";

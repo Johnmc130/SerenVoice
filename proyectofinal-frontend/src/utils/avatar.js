@@ -1,9 +1,9 @@
 import api from '../config/api';
 
 // URL base para archivos estáticos (uploads, etc.) - NO usa /api prefix
-const isDevelopment = import.meta.env.DEV;
-const RAW_API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
-const STATIC_BASE = isDevelopment ? "" : RAW_API_URL.replace(/\/+$/, "");
+// En producción con Nginx proxy, usar rutas relativas
+const RAW_API_URL = import.meta.env.VITE_API_URL || "";
+const STATIC_BASE = RAW_API_URL ? RAW_API_URL.replace(/\/+$/, "") : "";
 
 // Extensiones de imagen válidas
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg'];

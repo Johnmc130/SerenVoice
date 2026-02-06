@@ -10,8 +10,8 @@ RUN npm ci
 # Copiar código fuente
 COPY . .
 
-# Build de producción con la URL del backend
-ARG VITE_API_URL=http://flask_backend:5000
+# Build de producción con la URL del backend (usa proxy /api)
+ARG VITE_API_URL=
 ENV VITE_API_URL=$VITE_API_URL
 
 RUN npm run build

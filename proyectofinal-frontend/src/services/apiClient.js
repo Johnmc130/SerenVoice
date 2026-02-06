@@ -9,7 +9,8 @@ import secureLogger from '../utils/secureLogger';
 // ==============================
 const deriveBaseUrl = () => {
   if (apiConfig?.baseURL) return apiConfig.baseURL;
-  const raw = import.meta.env.VITE_API_URL || "http://localhost:5000";
+  const raw = import.meta.env.VITE_API_URL || "";
+  if (!raw) return "/api";  // Usar ruta relativa para Nginx proxy
   const normalized = String(raw).replace(/\/+$/, "");
   return `${normalized}/api`;
 };

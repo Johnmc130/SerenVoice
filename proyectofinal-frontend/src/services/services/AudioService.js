@@ -1,4 +1,5 @@
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
+// En producción con Nginx proxy, usar rutas relativas
+const API_URL = import.meta.env.VITE_API_URL || "";
 
 class AudioService {
   async analyzeAudio(audioUri, duration = 0, userId = null, token = null) {
